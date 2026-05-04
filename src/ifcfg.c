@@ -324,18 +324,16 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
   if (r < 0)
     return return_syntax_error(nr, arg, -EINVAL);
 
-  cfg.interface = token;
-
-  if (isempty(cfg.interface) || isempty(str))
+  if (isempty(token) || isempty(str))
     return return_syntax_error(nr, arg, -ENOENT);
 
   if (debug)
     printf("Interface - Config: '%s' - '%s'\n",
-	   cfg.interface, str);
+	   token, str);
 
-  if (!isempty(cfg.interface))
+  if (!isempty(token))
     {
-      char *vlanid_str = strrchr(cfg.interface, '.');
+      char *vlanid_str = strrchr(token, '.');
       if (vlanid_str != NULL)
 	{
 	  char *ep;
@@ -348,7 +346,7 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
 	  if (errno == ERANGE || l < 1 || l > 4095 ||
 	      vlanid_str == ep || *ep != '\0')
 	    {
-	      fprintf(stderr, "Invalid VLAN interface: %s\n", cfg.interface);
+	      fprintf(stderr, "Invalid VLAN interface: %s\n", token);
 	      return -EINVAL;
 	    }
 	  vlanid = l;
@@ -369,11 +367,14 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
 	}
     }
 
+  // token is only the interace, possible vlan ids got removed
+  cfg.interface = token;
+
   // Format: IP_LIST,GATEWAY_LIST,NAMESERVER_LIST,DOMAINSEARCH_LIST
   char *ip_list = trim_whitespace(strsep(&str, ","));
   char *gw_list = trim_whitespace(strsep(&str, ","));
   char *dns_list = trim_whitespace(strsep(&str, ","));
-  char *domains = trim_whitespace( strsep(&str, ","));
+  char *domains = trim_whitespace(strsep(&str, ","));
 
   if (strneq(ip_list, "dhcp", 4))
     {
