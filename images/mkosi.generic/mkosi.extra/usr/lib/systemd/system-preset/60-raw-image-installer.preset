@@ -1,6 +1,7 @@
 enable ca-certificates-setup.service
 enable rdii-fetch-config.service
 enable rdii-fetch-config-early.service
+enable rdii-mount-img-part
 enable rdii-networkd.service
 enable rdii-ssh-setup.service
 enable systemd-networkd.service

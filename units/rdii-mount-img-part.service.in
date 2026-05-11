@@ -1,0 +1,12 @@
+[Unit]
+Description=Mount all partitions labeled 'images'
+After=local-fs.target
+Before=getty.target
+
+[Service]
+Type=oneshot
+ExecStart=@RDIIDIR@/mount-part-by-label images
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
