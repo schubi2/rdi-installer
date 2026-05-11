@@ -8,6 +8,7 @@ project(
                   'localstatedir=/var',
                   'buildtype=debugoptimized',
   		  'default_library=shared',
+                  'c_std=c23',
 		  'b_pie=true',
                   'b_lto=true',
                   'werror=true',
