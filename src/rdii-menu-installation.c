@@ -68,8 +68,7 @@ verify_signature(const char *file, const char *key)
     }
   else
     {
-      LOG_ER("gpgv terminated abnormally");
-      fprintf(stderr, "gpgv terminated abnormally\n"); // XXX
+      LOG_ER("gpgv terminated abnormally"); // XXX
       return -1; // XXX
     }
 }
@@ -86,8 +85,7 @@ fix_partition_table(const char *device)
 
   if (r < 0)
     {
-      LOG_ER("Failed to start sgdisk: %s", strerror(-r));
-      fprintf(stderr, "Failed to start sgdisk: %s\n", strerror(-r)); // XXX
+      LOG_ER("Failed to start sgdisk: %s", strerror(-r)); // XXX
       return r;
     }
   if (r > 0)
@@ -96,9 +94,7 @@ fix_partition_table(const char *device)
 	{
 	  int sig = r - 128;
 	  LOG_ER("sgdisk was terminated by signal %d (%s)",
-		 sig, strsignal(sig));
-	  fprintf(stderr, "sgdisk was terminated by signal %d (%s)\n",
-		  sig, strsignal(sig)); // XXX
+		 sig, strsignal(sig)); // XXX
 	}
       else
 	LOG_ER("sgdisk failed with %i", r);
@@ -169,7 +165,7 @@ write_net_image(const char *url, const char *device)
     posix_spawn_file_actions_addclose(&fa[0], all_pipes[i]);
   if (posix_spawnp(&pids[0], "wget", &fa[0], NULL, wget_args, environ) != 0)
     {
-      fprintf(stderr, "Starting 'wget' failed: %s", strerror(errno));
+      LOG_ER("Starting 'wget' failed: %s", strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 8; i++)
 	close(all_pipes[i]);
@@ -194,7 +190,7 @@ write_net_image(const char *url, const char *device)
     }
   if (posix_spawnp(&pids[1], "tee", &fa[1], NULL, tee_args, environ) != 0)
     {
-      fprintf(stderr, "Starting 'tee' failed: %s", strerror(errno));
+      LOG_ER("Starting 'tee' failed: %s", strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 8; i++)
 	close(all_pipes[i]);
@@ -210,7 +206,7 @@ write_net_image(const char *url, const char *device)
     posix_spawn_file_actions_addclose(&fa[2], all_pipes[i]);
   if (posix_spawnp(&pids[2], decomp_args[0], &fa[2], NULL, decomp_args, environ) != 0)
     {
-      fprintf(stderr, "Starting '%s' failed: %s", decomp_args[0], strerror(errno));
+      LOG_ER("Starting '%s' failed: %s", decomp_args[0], strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 8; i++)
 	close(all_pipes[i]);
@@ -229,7 +225,7 @@ write_net_image(const char *url, const char *device)
     posix_spawn_file_actions_addclose(&fa[3], all_pipes[i]);
   if (posix_spawnp(&pids[3], "dd", &fa[3], NULL, dd_args, environ) != 0)
     {
-      fprintf(stderr, "Starting 'dd' failed: %s", strerror(errno));
+      LOG_ER("Starting 'dd' failed: %s", strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 8; i++)
 	close(all_pipes[i]);
@@ -250,7 +246,7 @@ write_net_image(const char *url, const char *device)
     posix_spawn_file_actions_addclose(&fa[4], all_pipes[i]);
   if (posix_spawnp(&pids[4], "sha256sum", &fa[4], NULL, sha_args, environ) != 0)
     {
-      fprintf(stderr, "Starting 'sha256sum' failed: %s", strerror(errno));
+      LOG_ER("Starting 'sha256sum' failed: %s", strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 8; i++)
 	close(all_pipes[i]);
@@ -274,7 +270,7 @@ write_net_image(const char *url, const char *device)
       if (waitpid(pids[i], &status, 0) == -1)
 	{
 	  r = errno;
-	  fprintf(stderr, "waitpid(%i) failed: %s\n", i, strerror(r)); // XXX show_error
+	  LOG_ER("waitpid(%i) failed: %s\n", i, strerror(r)); // XXX show_error
 	  return -r;
 	}
 
@@ -288,13 +284,13 @@ write_net_image(const char *url, const char *device)
 	  // ignore SIGPIPE, follow up error
 	  if (WTERMSIG(status) != 13)
 	    {
-	      fprintf(stderr, "Process %i killed by signal %d\n", i, WTERMSIG(status));
+	      LOG_ER("Process %i killed by signal %d\n", i, WTERMSIG(status));
 	      first_error = 1;
 	    }
 	}
       else
 	{
-	  fprintf(stderr, "Process %i terminated abnormally\n", i); // XXX
+	  LOG_ER("Process %i terminated abnormally", i); // XXX
 	  first_error = 1;
 	}
     }
@@ -363,7 +359,7 @@ write_local_image(const char *file, const char *device)
     posix_spawn_file_actions_addclose(&fa[0], all_pipes[i]);
   if (posix_spawnp(&pids[0], "pv", &fa[0], NULL, pv_args, environ) != 0)
     {
-      fprintf(stderr, "Starting 'pv' failed: %s", strerror(errno));
+      LOG_ER("Starting 'pv' failed: %s", strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 4; i++)
 	close(all_pipes[i]);
@@ -379,7 +375,7 @@ write_local_image(const char *file, const char *device)
     posix_spawn_file_actions_addclose(&fa[1], all_pipes[i]);
   if (posix_spawnp(&pids[1], decomp_args[0], &fa[1], NULL, decomp_args, environ) != 0)
     {
-      fprintf(stderr, "Starting '%s' failed: %s", decomp_args[0], strerror(errno));
+      LOG_ER("Starting '%s' failed: %s", decomp_args[0], strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 4; i++)
 	close(all_pipes[i]);
@@ -398,7 +394,7 @@ write_local_image(const char *file, const char *device)
     posix_spawn_file_actions_addclose(&fa[2], all_pipes[i]);
   if (posix_spawnp(&pids[2], "dd", &fa[2], NULL, dd_args, environ) != 0)
     {
-      fprintf(stderr, "Starting 'dd' failed: %s", strerror(errno));
+      LOG_ER("Starting 'dd' failed: %s", strerror(errno));
       keywait(LINES-3, 0, NULL, 0);
       for (int i = 0; i < 4; i++)
 	close(all_pipes[i]);
@@ -422,7 +418,7 @@ write_local_image(const char *file, const char *device)
       if (waitpid(pids[i], &status, 0) == -1)
 	{
 	  r = errno;
-	  fprintf(stderr, "waitpid(%i) failed: %s\n", i, strerror(r)); // XXX show_error
+	  LOG_ER("waitpid(%i) failed: %s", i, strerror(r)); // XXX show_error
 	  return -r;
 	}
 
@@ -436,13 +432,13 @@ write_local_image(const char *file, const char *device)
 	  // ignore SIGPIPE, follow up error
 	  if (WTERMSIG(status) != 13)
 	    {
-	      fprintf(stderr, "Process %i killed by signal %d\n", i, WTERMSIG(status));
+	      LOG_ER("Process %i killed by signal %d", i, WTERMSIG(status));
 	      first_error = 1;
 	    }
 	}
       else
 	{
-	  fprintf(stderr, "Process %i terminated abnormally\n", i); // XXX
+	  LOG_ER("Process %i terminated abnormally", i); // XXX
 	  first_error = 1;
 	}
     }
@@ -467,7 +463,6 @@ sha256_eq(const char *path1, const char *path2)
     {
       r = errno;
       LOG_ER("Cannot open '%s': %s", path1, strerror(r));
-      fprintf(stderr, "Cannot open '%s': %s", path1, strerror(r));
       return false;
     }
 
@@ -476,7 +471,6 @@ sha256_eq(const char *path1, const char *path2)
     {
       r = errno;
       LOG_ER("Cannot open '%s': %s", path2, strerror(r));
-      fprintf(stderr, "Cannot open '%s': %s", path2, strerror(r));
       return false;
     }
 
@@ -624,8 +618,7 @@ run_installation(const char *url, const char *device)
     }
   else
     {
-      LOG_ER("Unknown URL format: %s", url);
-      fprintf(stderr, "Unknown URL format: %s\n", url); // XXX
+      LOG_ER("Unknown URL format: %s", url); // XXX
       return -EINVAL;
     }
 

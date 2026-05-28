@@ -94,8 +94,8 @@ main_disk(int argc, char **argv)
 	  r = parse_size(optarg, &minsize);
 	  if (r < 0)
 	    {
-	      fprintf(stderr, "Error parsing '%s': %s\n",
-		      optarg, strerror(-r));
+	      LOG_ER("Error parsing '%s': %s",
+		     optarg, strerror(-r));
 	      return -r;
 	    }
 	  break;
@@ -103,7 +103,7 @@ main_disk(int argc, char **argv)
           print_help();
           return 0;
         case 'v':
-          printf("rdii-helper (%s) %s\n", PACKAGE, VERSION);
+          LOG_INF("rdii-helper (%s) %s", PACKAGE, VERSION);
           return 0;
         default:
           print_error();
@@ -116,7 +116,7 @@ main_disk(int argc, char **argv)
 
   if (argc > 0)
     {
-      fprintf(stderr, "rdii-helper disk: Too many arguments.\n");
+      LOG_ER("rdii-helper disk: Too many arguments.");
       print_error();
       return EINVAL;
     }
@@ -134,8 +134,8 @@ main_disk(int argc, char **argv)
 	  if (disk[i].size < minsize)
 	    continue;
 	}
-      printf("%s - %s (%s, %.1f GB)", disk[i].device,
-	     strunknown(disk[i].model), disk[i].bus, disk[i].size_gb);
+      LOG_INF("%s - %s (%s, %.1f GB)", disk[i].device,
+	      strunknown(disk[i].model), disk[i].bus, disk[i].size_gb);
       if (disk[i].is_default_device)
 	fputs(" [Default]", stdout);
       if (disk[i].is_boot_device)

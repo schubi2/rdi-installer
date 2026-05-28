@@ -105,8 +105,8 @@ main(void)
   r = log_init(rdii_log);
   if (r < 0)
     {
-      fprintf(stderr, "Error initializing log file (%s): %s\n",
-	      rdii_log, strerror(-r));
+      LOG_ER("Error initializing log file (%s): %s",
+             rdii_log, strerror(-r));
       return -r;
     }
 

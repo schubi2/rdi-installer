@@ -14,6 +14,7 @@
 
 #include "basics.h"
 #include "rdii-menu.h"
+#include "logger.h"
 
 static int
 get_vconsole_keymap(char **ret)
@@ -61,7 +62,7 @@ set_keymap(const char *keymap)
   r = posix_spawnp(&pid, "loadkeys", NULL, NULL, argv, environ);
   if (r != 0)
     {
-      fprintf(stderr, "Failed to spawn loadkeys: %s\n", strerror(r)); // XXX
+      LOG_ER("Failed to spawn loadkeys: %s", strerror(r)); // XXX
       return -r;
     }
 
@@ -80,7 +81,7 @@ set_keymap(const char *keymap)
     }
   else
     {
-      fprintf(stderr, "loadkeys terminated abnormally\n"); // XXX
+      LOG_ER("loadkeys terminated abnormally"); // XXX
       return -1;
     }
 }
