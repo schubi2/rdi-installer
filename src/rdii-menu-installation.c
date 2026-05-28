@@ -31,7 +31,7 @@ verify_signature(const char *file, const char *key)
   int status;
   int r;
 
-  LOG_FUNC("file='%s', key='%s'", file, key);
+  LOG_FUN("file='%s', key='%s'", file, key);
 
   char *argv[] = {"gpgv", "--keyring", "/etc/systemd/import-pubring.gpg",
 		  (char *)key, (char *)file, NULL};
@@ -58,17 +58,17 @@ verify_signature(const char *file, const char *key)
     {
       if (WEXITSTATUS(status)) // Signature doesn't match
 	{
-	  LOG_ERROR("Signature does not match (gpgv failed with %i)",
-		    WEXITSTATUS(status));
+	  LOG_ER("Signature does not match (gpgv failed with %i)",
+		 WEXITSTATUS(status));
 	  keywait(8, 0, NULL, 0);
 	}
       else
-	LOG_INFO("Signature matches");
+	LOG_INF("Signature matches");
       return WEXITSTATUS(status);
     }
   else
     {
-      LOG_ERROR("gpgv terminated abnormally");
+      LOG_ER("gpgv terminated abnormally");
       fprintf(stderr, "gpgv terminated abnormally\n"); // XXX
       return -1; // XXX
     }
@@ -80,13 +80,13 @@ fix_partition_table(const char *device)
 {
   int r;
 
-  LOG_FUNC("device='%s'", device);
+  LOG_FUN("device='%s'", device);
 
   r = exec_cmd("/usr/sbin/sgdisk", "sgdisk", "-e", (char *)device, NULL);
 
   if (r < 0)
     {
-      LOG_ERROR("Failed to start sgdisk: %s", strerror(-r));
+      LOG_ER("Failed to start sgdisk: %s", strerror(-r));
       fprintf(stderr, "Failed to start sgdisk: %s\n", strerror(-r)); // XXX
       return r;
     }
@@ -95,13 +95,13 @@ fix_partition_table(const char *device)
       if (r > 128) // aborted by signal
 	{
 	  int sig = r - 128;
-	  LOG_ERROR("sgdisk was terminated by signal %d (%s)",
-		    sig, strsignal(sig));
+	  LOG_ER("sgdisk was terminated by signal %d (%s)",
+		 sig, strsignal(sig));
 	  fprintf(stderr, "sgdisk was terminated by signal %d (%s)\n",
 		  sig, strsignal(sig)); // XXX
 	}
       else
-	LOG_ERROR("sgdisk failed with %i", r);
+	LOG_ER("sgdisk failed with %i", r);
 
       keywait(8, 0, NULL, 0);
       return -ECHILD;
@@ -123,7 +123,7 @@ write_net_image(const char *url, const char *device)
   int p_wget_tee[2], p_tee_sha[2], p_tee_decomp[2], p_decomp_dd[2];
   int r;
 
-  LOG_FUNC("url='%s', device='%s'", url, device);
+  LOG_FUN("url='%s', device='%s'", url, device);
 
   if (endswith(url, ".xz"))
     decomp_args = decomp_xz_args;
@@ -136,13 +136,13 @@ write_net_image(const char *url, const char *device)
   else
     decomp_args = decomp_cat_args;
 
-  LOG_INFO("decompressor=%s", decomp_args[0]);
+  LOG_INF("decompressor=%s", decomp_args[0]);
 
   if (pipe(p_wget_tee) != 0 || pipe(p_tee_sha) != 0 ||
       pipe(p_tee_decomp) != 0 || pipe(p_decomp_dd) != 0)
     {
       r = errno;
-      LOG_ERROR("pipe allocation failed: %s", strerror(r));
+      LOG_ER("pipe allocation failed: %s", strerror(r));
       show_error_popup("pipe allocation failed", strerror(r));
       return -r;
     }
@@ -320,7 +320,7 @@ write_local_image(const char *file, const char *device)
   int p_pv_decomp[2], p_decomp_dd[2];
   int r;
 
-  LOG_FUNC("file='%s', device='%s'", file, device);
+  LOG_FUN("file='%s', device='%s'", file, device);
 
   if (endswith(file, ".xz"))
     decomp_args = decomp_xz_args;
@@ -333,12 +333,12 @@ write_local_image(const char *file, const char *device)
   else
     decomp_args = decomp_cat_args;
 
-  LOG_INFO("decompressor=%s", decomp_args[0]);
+  LOG_INF("decompressor=%s", decomp_args[0]);
 
   if (pipe(p_pv_decomp) != 0 || pipe(p_decomp_dd) != 0)
     {
       r = errno;
-      LOG_ERROR("pipe allocation failed: %s", strerror(r));
+      LOG_ER("pipe allocation failed: %s", strerror(r));
       show_error_popup("pipe allocation failed", strerror(r));
       return -r;
     }
@@ -460,13 +460,13 @@ sha256_eq(const char *path1, const char *path2)
   _cleanup_fclose_ FILE *fp2 = NULL;
   int r;
 
-  LOG_FUNC("path1='%s', path2='%s'", path1, path2);
+  LOG_FUN("path1='%s', path2='%s'", path1, path2);
 
   fp1 = fopen(path1, "r");
   if (!fp1)
     {
       r = errno;
-      LOG_ERROR("Cannot open '%s': %s", path1, strerror(r));
+      LOG_ER("Cannot open '%s': %s", path1, strerror(r));
       fprintf(stderr, "Cannot open '%s': %s", path1, strerror(r));
       return false;
     }
@@ -475,7 +475,7 @@ sha256_eq(const char *path1, const char *path2)
   if (!fp2)
     {
       r = errno;
-      LOG_ERROR("Cannot open '%s': %s", path2, strerror(r));
+      LOG_ER("Cannot open '%s': %s", path2, strerror(r));
       fprintf(stderr, "Cannot open '%s': %s", path2, strerror(r));
       return false;
     }
@@ -488,18 +488,18 @@ sha256_eq(const char *path1, const char *path2)
   nread = getdelim(&hash1, &len, ' ', fp1);
   if (nread != 65) // includes trailing space
     {
-      LOG_ERROR("Read '%s' failed - nread=%li (%s)", path2, nread, hash1);
+      LOG_ER("Read '%s' failed - nread=%li (%s)", path2, nread, hash1);
       return false;
     }
 
   nread = getdelim(&hash2, &len, ' ', fp2);
   if (nread != 65) // includes trailing space
     {
-      LOG_ERROR("Read '%s' failed - nread=%li (%s)", path2, nread, hash2);
+      LOG_ER("Read '%s' failed - nread=%li (%s)", path2, nread, hash2);
       return false;
     }
 
-  LOG_INFO("'%s' - '%s' - %i\n", hash1, hash2, streq(hash1, hash2));
+  LOG_INF("'%s' - '%s' - %i\n", hash1, hash2, streq(hash1, hash2));
 
   return streq(hash1, hash2);
 }
@@ -511,7 +511,7 @@ run_installation(const char *url, const char *device)
   bool is_neturl = startswith(url, "https://") || startswith(url, "http://");
   int r;
 
-  LOG_FUNC("url='%s', device='%s'", strna(url), strna(device));
+  LOG_FUN("url='%s', device='%s'", strna(url), strna(device));
 
   if (is_device_mounted(device))
     {
@@ -520,7 +520,7 @@ run_installation(const char *url, const char *device)
 		   device) < 0)
 	return -ENOMEM;
 
-      LOG_ERROR(msg);
+      LOG_ER(msg);
 
       r = show_warning_popup("!!! CRITICAL WARNING: DRIVE IS CURRENTLY MOUNTED !!!",
 			     msg,
@@ -537,7 +537,7 @@ run_installation(const char *url, const char *device)
     {
       _cleanup_free_ char *sha256_url = NULL;
 
-      LOG_INFO("Is network url");
+      LOG_INF("Is network url");
 
       if (asprintf(&sha256_url, "%s.sha256", url) < 0)
 	return -ENOMEM;
@@ -585,7 +585,7 @@ run_installation(const char *url, const char *device)
     {
       _cleanup_free_ char *sha256_file = NULL;
 
-      LOG_INFO("Is a file url");
+      LOG_INF("Is a file url");
 
       if (asprintf(&sha256_file, "%s.sha256", url) < 0)
 	return -ENOMEM;
@@ -624,7 +624,7 @@ run_installation(const char *url, const char *device)
     }
   else
     {
-      LOG_ERROR("Unknown URL format: %s", url);
+      LOG_ER("Unknown URL format: %s", url);
       fprintf(stderr, "Unknown URL format: %s\n", url); // XXX
       return -EINVAL;
     }

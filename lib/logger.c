@@ -6,13 +6,26 @@
 #include <stdarg.h>
 #include <time.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <systemd/sd-journal.h>
 #include "logger.h"
 
 static FILE *log_file = NULL;
+static int current_log_level = LOG_TRACE;
 
-static const char* level_strings[] = {
-    "TRACE", "INFO", "WARN", "ERROR"
-};
+const char* log_level_to_str(int level) {
+    switch (level) {
+        case LOG_EMERG:   return "EMERGENCY";
+        case LOG_ALERT:   return "ALERT";
+        case LOG_CRIT:    return "CRITICAL";
+        case LOG_ERR:     return "ERROR";
+        case LOG_WARNING: return "WARNING";
+        case LOG_NOTICE:  return "NOTICE";
+        case LOG_INFO:    return "INFO";
+        case LOG_DEBUG:   return "DEBUG";
+        default:          return "UNKNOWN";
+    }
+}
 
 int
 log_init(const char *filename)
@@ -27,6 +40,12 @@ log_init(const char *filename)
 }
 
 void
+set_max_log_level(int level)
+{
+  current_log_level = level;
+}
+
+void
 log_close(void)
 {
   if (log_file)
@@ -37,26 +56,65 @@ log_close(void)
 }
 
 void
-log_write(LogLevel level, const char *file, int line, const char *func,
-	  const char *fmt, ...)
+log_write_service(int level, const char *fmt, ...)
 {
-  if (!log_file)
+  static int is_tty = -1;
+
+  if (level == LOG_TRACE || /* Do not log function parameters */
+      level > current_log_level)
     return;
 
-  time_t now;
-  time(&now);
-  struct tm *tm_info = localtime(&now);
-  char time_buffer[26];
-  strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d %H:%M:%S", tm_info);
+  if (is_tty == -1)
+    is_tty = isatty(STDOUT_FILENO);
 
-  fprintf(log_file, "[%s] [%-5s] %s:%d %s() - ",
-	  time_buffer, level_strings[level], file, line, func);
+  va_list ap;
 
+  va_start(ap, fmt);
+
+  if (is_tty)
+    {
+      if (level <= LOG_ERR)
+        {
+          vfprintf(stderr, fmt, ap);
+          fputc('\n', stderr);
+        }
+      else
+        {
+          vprintf(fmt, ap);
+          putchar('\n');
+        }
+    }
+  else
+    sd_journal_printv(level, fmt, ap);
+
+  va_end(ap);
+}
+
+void
+log_write(int level, const char *file, int line, const char *func,
+	  const char *fmt, ...)
+{
   va_list args;
-  va_start(args, fmt);
-  vfprintf(log_file, fmt, args);
-  va_end(args);
 
-  fprintf(log_file, "\n");
-  fflush(log_file);
+  va_start(args, fmt);
+
+  if (!log_file)
+    {
+      log_write_service( level, fmt, args);
+    } else {
+      time_t now;
+      time(&now);
+      struct tm *tm_info = localtime(&now);
+      char time_buffer[26];
+      strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%d %H:%M:%S", tm_info);
+
+      fprintf(log_file, "[%s] [%-5s] %s:%d %s() - ",
+	      time_buffer, log_level_to_str(level), file, line, func);
+
+
+      vfprintf(log_file, fmt, args);
+      fprintf(log_file, "\n");
+      fflush(log_file);
+    }
+  va_end(args);
 }

@@ -63,6 +63,7 @@ libcurl = dependency('libcurl', required: true)
 libudev = dependency('libudev', required: true)
 libncurses = dependency('ncursesw', required: true)
 libeconf = dependency('libeconf', required: true)
+libsystemd = dependency('libsystemd', required : true)
 
 libefivars_c = files('lib/efivars.c')
 libefivars = static_library(
@@ -104,7 +105,7 @@ executable('rdii-fetch-config',
            rdii_fetch_config_c,
            include_directories : inc,
 	   link_with : [libefivars, librdii],
-           dependencies : [libcurl],
+           dependencies : [libcurl, libsystemd],
            install : true)
 
 rdii_helper_c = ['src/rdii-helper.c', 'src/rdii-helper-disk.c' ]
@@ -112,7 +113,7 @@ executable('rdii-helper',
            rdii_helper_c,
            include_directories : inc,
 	   link_with : [libefivars, libdevices, librdii],
-           dependencies : [libudev],
+           dependencies : [libudev, libsystemd],
            install : true)
 
 rdi_installer_c = ['src/rdi-installer.c',
@@ -123,7 +124,7 @@ executable('rdi-installer',
            rdi_installer_c,
            include_directories : inc,
            link_with : [libefivars, libdevices, librdii],
-           dependencies : [libncurses, libeconf, libudev, libcurl],
+           dependencies : [libncurses, libeconf, libudev, libcurl, libsystemd],
            install : true)
 
 # additional tools

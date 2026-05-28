@@ -13,6 +13,7 @@
 #include "efivars.h"
 #include "rdii-helper.h"
 #include "exec_cmd.h"
+#include "logger.h"
 
 static void
 print_usage(FILE *stream)
@@ -60,6 +61,8 @@ main_boot(int argc, char **argv)
   _cleanup_free_ char *defloaderentry = NULL;
   int r;
 
+  set_max_log_level(LOG_WARNING);
+
   while (1)
     {
       int c;
@@ -80,7 +83,7 @@ main_boot(int argc, char **argv)
       switch (c)
         {
 	case 'd':
-	  _efivars_debug = true;
+	  set_max_log_level(LOG_DEBUG);
           break;
 	case 'h':
           print_help();
@@ -157,7 +160,7 @@ main_set_default_loader_entry(int argc, char **argv)
       switch (c)
         {
 	case 'd':
-	  _efivars_debug = true;
+          set_max_log_level(LOG_DEBUG);
           break;
 	case 'V':
 	  verbose = true;

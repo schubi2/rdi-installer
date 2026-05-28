@@ -13,6 +13,7 @@
 #include "efivars.h"
 #include "mkdir_p.h"
 #include "download.h"
+#include "logger.h"
 
 static const char *output_dir = "/run/rdi-installer";
 
@@ -120,6 +121,8 @@ main(int argc, char **argv)
   bool no_network = false;
   int r;
 
+  set_max_log_level(LOG_WARNING);
+
     while (1)
     {
       int c;
@@ -143,7 +146,7 @@ main(int argc, char **argv)
       switch (c)
         {
         case 'd':
-          _efivars_debug = true;
+          set_max_log_level(LOG_DEBUG);
           break;
 	case 'l':
 	  no_network = true;

@@ -14,6 +14,7 @@
 #include "efivars.h"
 #include "devices.h"
 #include "rdii-helper.h"
+#include "logger.h"
 
 /* simple helper function, not very robust */
 static int
@@ -60,6 +61,8 @@ main_disk(int argc, char **argv)
   bool all_devices = false;
   int r;
 
+  set_max_log_level(LOG_WARNING);
+
   while (1)
     {
       int c;
@@ -85,7 +88,7 @@ main_disk(int argc, char **argv)
 	  all_devices = true;
 	  break;
 	case 'd':
-	  _efivars_debug = true;
+          set_max_log_level(LOG_DEBUG);
           break;
 	case 's':
 	  r = parse_size(optarg, &minsize);

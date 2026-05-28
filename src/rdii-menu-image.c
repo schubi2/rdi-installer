@@ -243,7 +243,7 @@ load_directory(const char *path,
   int capacity = 42;
   int count = 0;
 
-  LOG_FUNC("path='%s'", path);
+  LOG_FUN("path='%s'", path);
 
   entries = malloc(capacity * sizeof(entry));
   if (!entries)
@@ -283,14 +283,14 @@ load_directory(const char *path,
       count++;
     }
 
-  LOG_INFO("Starting qsort(%i)", count);
+  LOG_INF("Starting qsort(%i)", count);
   qsort(&entries[0], count, sizeof(entry), compare_entries);
-  LOG_INFO("Finished qsort()");
+  LOG_INF("Finished qsort()");
 
   *entries_ret = TAKE_PTR(entries);
   *entries_size_ret = capacity;
 
-  LOG_INFO("Done (%i)", count);
+  LOG_INF("Done (%i)", count);
 
   return count;
 }
@@ -306,11 +306,11 @@ get_file(const char *prefill, char **ret)
   int num_options = 0;
   int r;
 
-  LOG_FUNC("prefill='%s', ret='%s'", strna(prefill), strna(*ret));
+  LOG_FUN("prefill='%s', ret='%s'", strna(prefill), strna(*ret));
 
   if (!ret)
     {
-      LOG_ERROR("Internal error: variable ret not provided");
+      LOG_ER("Internal error: variable ret not provided");
       return -EINVAL;
     }
 
@@ -337,7 +337,7 @@ get_file(const char *prefill, char **ret)
       print_global_header_footer(NULL);
       print_title(curr_dir /*"Select Source Image"*/);
 
-      LOG_INFO("Current directory='%s'", curr_dir);
+      LOG_INF("Current directory='%s'", curr_dir);
 
       if (entries)
 	entries = mfree(entries);
@@ -358,12 +358,12 @@ get_file(const char *prefill, char **ret)
       selected = choose_entry(4, (const char **)options, num_options, selected);
       if (selected < 0) // canceld or error.
 	{
-	  LOG_INFO("get_file aborted: %i", -selected);
+	  LOG_INF("get_file aborted: %i", -selected);
 	  return selected;
 	}
 
-      LOG_INFO("Selected entry: %i (%s|%s)", selected, entries[selected].name,
-	       strbool(entries[selected].is_dir));
+      LOG_INF("Selected entry: %i (%s|%s)", selected, entries[selected].name,
+	      strbool(entries[selected].is_dir));
 
       if (entries[selected].is_dir)
 	{
@@ -376,7 +376,7 @@ get_file(const char *prefill, char **ret)
 	    {
 	      curr_dir = mfree(curr_dir);
 	      curr_dir = strdup(resolved_path);
-	      LOG_INFO("curr_dir after strdup: '%s'", curr_dir);
+	      LOG_INF("curr_dir after strdup: '%s'", curr_dir);
 	      if (!curr_dir)
 		return -ENOMEM;
 	      selected = 0;
@@ -384,14 +384,14 @@ get_file(const char *prefill, char **ret)
 	  else
 	    {
 	      r = -errno;
-	      LOG_ERROR("realpath(%s) failed: %s", new_path, strerror(-r));
+	      LOG_ER("realpath(%s) failed: %s", new_path, strerror(-r));
 	      return r;
 	    }
-	  LOG_INFO("New curr_dir='%s'", curr_dir);
+	  LOG_INF("New curr_dir='%s'", curr_dir);
 	}
       else
 	{
-	  LOG_INFO("Selected image: '%s/%s'", curr_dir, entries[selected].name);
+	  LOG_INF("Selected image: '%s/%s'", curr_dir, entries[selected].name);
 	  if (asprintf(ret, "%s/%s", curr_dir, entries[selected].name) < 0)
 	    return -ENOMEM;
 	  return 0;
@@ -434,7 +434,7 @@ select_installation_source(const char *prefill, char **ret)
 	      return 0;
 	    }
 	  else
-	    LOG_ERROR("get_file() quit with %i: %s", r, strerror(-r));
+	    LOG_ER("get_file() quit with %i: %s", r, strerror(-r));
 	  break;
 	default:
 	  return 0;

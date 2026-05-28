@@ -110,7 +110,7 @@ main(void)
       return -r;
     }
 
-  LOG_INFO("rdi-installer started");
+  LOG_INF("rdi-installer started");
 
   // XXX error check missing
   // XXX keymap ignored
@@ -120,8 +120,8 @@ main(void)
   r = mkdtemp_malloc(tmpdir_template, &rdii_tmp_dir_cleanup);
   if (r < 0)
     {
-      LOG_ERROR("Failed to create temporary directory (%s): %s",
-		tmpdir_template, strerror(-r));
+      LOG_ER("Failed to create temporary directory (%s): %s",
+	     tmpdir_template, strerror(-r));
       show_error_popup("Failed to create temporary directory:",
 		       strerror(-r));
       return -r;
@@ -131,7 +131,7 @@ main(void)
 
   r = rdii_menu(image, image1, image2, device);
 
-  LOG_INFO("rdi-installer stopped (retval=%i)", r);
+  LOG_INF("rdi-installer stopped (retval=%i)", r);
 
   log_close();
 
