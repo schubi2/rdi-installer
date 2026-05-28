@@ -43,7 +43,7 @@ verify_signature(const char *file, const char *key)
   r = posix_spawnp(&pid, "gpgv", NULL, NULL, argv, environ);
   if (r != 0)
     {
-      fprintf(stderr, "Failed to spawn gpgv: %s\n", strerror(r)); // XXX
+      LOG_ER( "Failed to spawn gpgv: %s", strerror(r)); // XXX
       return -r;
     }
 

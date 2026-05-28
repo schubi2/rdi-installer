@@ -10,6 +10,7 @@
 
 #include "basics.h"
 #include "efivars.h"
+#include "logger.h"
 
 #include "devices.h"
 
@@ -106,8 +107,8 @@ get_devices(device_t **ret, int *ret_count)
   r = efi_get_boot_source(&efi);
   if (r < 0 && r != -ENODEV && r != -EOPNOTSUPP && r != -ENOENT)
     {
-      fprintf(stderr, "Getting default EFI boot partition failed: %s\n",
-	      strerror(-r));
+      LOG_ER("Getting default EFI boot partition failed: %s",
+              strerror(-r));
       return -r;
     }
   else if (r == 0)
@@ -121,14 +122,14 @@ get_devices(device_t **ret, int *ret_count)
   _cleanup_(udev_unrefp) struct udev *udev = udev_new();
   if (!udev)
     {
-      fprintf(stderr, "Cannot create udev context.\n");
+      LOG_ER("Cannot create udev context.");
       return ENOMEM;
     }
 
   _cleanup_(udev_enumerate_unrefp) struct udev_enumerate *enumerate = udev_enumerate_new(udev);
   if (!udev)
     {
-      fprintf(stderr, "Cannot create udev enumeration context.\n");
+      LOG_ER( "Cannot create udev enumeration context.");
       return 1;
     }
 
@@ -228,7 +229,7 @@ get_devices(device_t **ret, int *ret_count)
 
       if (count == 128)
 	{
-	  fprintf(stderr, "Error: you have too many disks!\n");
+          LOG_ER("Error: you have too many disks!");
 	  return -E2BIG;
 	}
     }

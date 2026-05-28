@@ -78,7 +78,7 @@ rm_rf_and_free(char *p)
   r = rm_rf(p);
 
   if (r < 0)
-    fprintf(stderr, "Removal of '%s' failed: %s\n", p, strerror(-r));
+    LOG_ER("Removal of '%s' failed: %s", p, strerror(-r));
 
   return mfree(p);
 }
