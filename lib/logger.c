@@ -23,6 +23,7 @@ const char* log_level_to_str(int level) {
         case LOG_NOTICE:  return "NOTICE";
         case LOG_INFO:    return "INFO";
         case LOG_DEBUG:   return "DEBUG";
+        case LOG_TRACE:   return "TRACE";
         default:          return "UNKNOWN";
     }
 }
@@ -56,51 +57,42 @@ log_close(void)
 }
 
 void
-log_write_service(int level, const char *fmt, ...)
-{
-  static int is_tty = -1;
-
-  if (level == LOG_TRACE || /* Do not log function parameters */
-      level > current_log_level)
-    return;
-
-  if (is_tty == -1)
-    is_tty = isatty(STDOUT_FILENO);
-
-  va_list ap;
-
-  va_start(ap, fmt);
-
-  if (is_tty)
-    {
-      if (level <= LOG_ERR)
-        {
-          vfprintf(stderr, fmt, ap);
-          fputc('\n', stderr);
-        }
-      else
-        {
-          vprintf(fmt, ap);
-          putchar('\n');
-        }
-    }
-  else
-    sd_journal_printv(level, fmt, ap);
-
-  va_end(ap);
-}
-
-void
 log_write(int level, const char *file, int line, const char *func,
 	  const char *fmt, ...)
 {
   va_list args;
 
+  if (level > current_log_level)
+    return;
+
   va_start(args, fmt);
 
   if (!log_file)
     {
-      log_write_service( level, fmt, args);
+      static int is_tty = -1;
+
+      if (level == LOG_TRACE || /* Do not log function parameters */
+          level > current_log_level)
+        return;
+
+      if (is_tty == -1)
+        is_tty = isatty(STDOUT_FILENO);
+
+      if (is_tty)
+        {
+	  if (level <= LOG_ERR)
+            {
+              vfprintf(stderr, fmt, args);
+	      fputc('\n', stderr);
+	    }
+	  else
+            {
+              vprintf(fmt, args);
+              putchar('\n');
+            }
+	}
+      else
+        sd_journal_printv(level, fmt, args);
     } else {
       time_t now;
       time(&now);

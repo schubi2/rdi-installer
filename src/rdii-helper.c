@@ -271,7 +271,7 @@ main(int argc, char **argv)
           print_help();
           return 0;
         case 'v':
-          LOG_INF("rdii-helper (%s) %s", PACKAGE, VERSION);
+          fprintf(stdout, "rdii-helper (%s) %s", PACKAGE, VERSION);
           return 0;
         default:
           print_error();

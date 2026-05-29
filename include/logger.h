@@ -13,7 +13,6 @@ void log_close(void);
 
 // The core logging functions (do not call directly, use macros)
 void log_write(int level, const char *file, int line, const char *func, const char *fmt, ...);
-void log_write_service(int level, const char *fmt, ...);
 const char* log_level_to_str(int level);
 
 // Convenience Macros
