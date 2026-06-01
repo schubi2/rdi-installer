@@ -15,6 +15,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+
 #include "basics.h"
 #include "efivars.h"
 #include "logger.h"
@@ -49,6 +50,10 @@
 #define DST_MSG_IPV4      0x0c
 #define DST_MSG_IPV6      0x0d
 #define DST_MSG_URI       0x18
+
+/* Hardware Device Path (DT_HARDWARE) SubTypes
+ */
+#define HW_PCI_DP                        0x01
 
 typedef struct {
     uint8_t type;
@@ -397,7 +402,7 @@ parse_device_path(char *data, size_t limit, efivars_t **res)
 	}
       else if (head->type == DT_HARDWARE)
 	{
-	  if (head->sub_type == 0x01) // XXX -> 0x01 should be a define
+	  if (head->sub_type == HW_PCI_DP)
 	    {
 	      pci_device_path_t *pci = (pci_device_path_t *)(data + offset + 4);
               LOG_INF("Pci(Device=0x%x, Function=0x%x)", pci->device, pci->function);
