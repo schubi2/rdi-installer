@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 
+#define LOG_FILE_HINT true
+#define NO_LOG_FILE_HINT false
+
 // The values are almost the same as in syslog.h defined.
 typedef enum {
     LOG_LEVEL_TRACE = -1,
@@ -18,9 +21,10 @@ typedef enum {
 // is available. Otherwise it will be written to journald. The default log level will be LOG_LEVEL_WARNING.
 // LOG_LEVEL_TRACE will NOT be logged to console or TTY.
 //
-// If there is a valid filename, all Logging (TRACE included) will be written to it.
+// If there is a valid filename, all logging (TRACE included) will be written to it.
 // The default log level will be LOG_LEVEL_INFO in that case.
 int log_init(const char *filename);
+const char *log_file_hint(void);
 
 void set_max_log_level(LogLevel level);
 void log_close(void);

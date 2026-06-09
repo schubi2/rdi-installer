@@ -139,7 +139,7 @@ write_net_image(const char *url, const char *device)
     {
       r = errno;
       LOG_ERROR("pipe allocation failed: %s", strerror(r));
-      show_error_popup("pipe allocation failed", strerror(r));
+      show_error_popup("Cannot start image download.", NULL, LOG_FILE_HINT);
       return -r;
     }
 
@@ -335,7 +335,7 @@ write_local_image(const char *file, const char *device)
     {
       r = errno;
       LOG_ERROR("pipe allocation failed: %s", strerror(r));
-      show_error_popup("pipe allocation failed", strerror(r));
+      show_error_popup("Cannot start installation process.", NULL, LOG_FILE_HINT);
       return -r;
     }
 
@@ -514,11 +514,10 @@ run_installation(const char *url, const char *device)
 		   device) < 0)
 	return -ENOMEM;
 
-      LOG_ERROR(msg);
-
       r = show_warning_popup("!!! CRITICAL WARNING: DRIVE IS CURRENTLY MOUNTED !!!",
 			     msg,
-			     "Proceeding may cause data loss or corruption.");
+			     "Proceeding may cause data loss or corruption.",
+			     NO_LOG_FILE_HINT);
       if (r == 0)
 	return -EINTR;
     }
@@ -544,7 +543,8 @@ run_installation(const char *url, const char *device)
 	{
 	  if (!show_warning_popup("Error downloading sha256 file:",
 				  r < 0?strerror(-r):curl_easy_strerror(r),
-				  "Continue without image verification?"))
+				  "Continue without image verification?",
+				  NO_LOG_FILE_HINT))
 	    return r;
 	}
       else
@@ -563,7 +563,8 @@ run_installation(const char *url, const char *device)
 	    {
 	      if (!show_warning_popup("Error downloading sha256.asc file:",
 				      r < 0?strerror(-r):curl_easy_strerror(r),
-				      "Continue without signature verification?"))
+				      "Continue without signature verification?",
+				      NO_LOG_FILE_HINT))
 		return r;
 	    }
 	  else
@@ -590,7 +591,8 @@ run_installation(const char *url, const char *device)
 	  r = -errno;
 	  if (!show_warning_popup("Cannot find sha256 file:",
 				  strerror(-r),
-				  "Continue without image verification?"))
+				  "Continue without image verification?",
+				  NO_LOG_FILE_HINT))
 	    return r;
 	}
       else
@@ -605,7 +607,8 @@ run_installation(const char *url, const char *device)
 	    {
 	      if (!show_warning_popup("Cannot find sha256.asc file:",
 				      r < 0?strerror(-r):curl_easy_strerror(r),
-				      "Continue without signature verification?"))
+				      "Continue without signature verification?",
+				      NO_LOG_FILE_HINT))
 		return r;
 	    }
 	  else
@@ -630,7 +633,7 @@ run_installation(const char *url, const char *device)
   print_global_header_footer(NULL);
   refresh();
   if (!show_warning_popup("WARNING: PERMANENT DATA LOSS - Are you absolutely sure?",
-			  url, device_line))
+			  url, device_line, NO_LOG_FILE_HINT))
     return 1;
 
   print_global_header_footer(NULL);
@@ -655,10 +658,10 @@ run_installation(const char *url, const char *device)
 	{
 	  _cleanup_free_ char *errmsg = NULL;
 	  show_error_popup("ERROR: SHA256 verification failed!",
-			   "Wiping invalid data and aborting...");
+			   "Wiping invalid data and aborting...", NO_LOG_FILE_HINT);
 	  if (zap_partition_tables(device, &errmsg) < 0)
 	    show_error_popup("ERROR: wiping invalid data failed!",
-			     errmsg);
+			     errmsg, NO_LOG_FILE_HINT);
 
 
 	  return -EIO;

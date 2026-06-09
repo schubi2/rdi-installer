@@ -16,7 +16,7 @@ const char *rdii_config = "/run/rdi-installer/rdii-config";
 const char *rdii_tmp_dir = NULL;
 const char *rdii_log = "/var/log/rdi-installer.log";
 
-static int
+static econf_err
 read_config(const char *config, char **ret_device,
 	    char **ret_url, char **ret_url1, char **ret_url2,
 	    char **ret_keymap)
@@ -32,29 +32,25 @@ read_config(const char *config, char **ret_device,
   error = econf_readFile(&key_file, config,
 			 "=", "#");
   if (error != ECONF_SUCCESS && error != ECONF_NOFILE)
-    {
-      show_error_popup("Failed to read config file:",
-                       econf_errString(error));
-      return -error;
-    }
+    return error;
 
   error = econf_getStringValue(key_file, NULL, "rdii.device", &device);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
-    return -error;
+    return error;
 
   error = econf_getStringValue(key_file, NULL, "rdii.url", &url);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
-    return -error;
+    return error;
   error = econf_getStringValue(key_file, NULL, "rdii.url1", &url1);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
-    return -error;
+    return error;
   error = econf_getStringValue(key_file, NULL, "rdii.url2", &url2);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
-    return -error;
+    return error;
 
   error = econf_getStringValue(key_file, NULL, "rdii.keymap", &keymap);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
-    return -error;
+    return error;
 
   if (ret_device)
     *ret_device = TAKE_PTR(device);
@@ -67,7 +63,7 @@ read_config(const char *config, char **ret_device,
   if (ret_keymap)
     *ret_keymap = TAKE_PTR(keymap);
 
-  return 0;
+  return ECONF_SUCCESS;
 }
 
 static char*
@@ -99,6 +95,7 @@ main(void)
   _cleanup_free_ char *image2 = NULL;
   _cleanup_free_ char *device = NULL;
   int r;
+  econf_err conf_err;
 
   if (getuid())
     rdii_log = "rdii.log";
@@ -107,14 +104,20 @@ main(void)
     {
       LOG_ERROR("Error initializing log file (%s): %s",
              rdii_log, strerror(-r));
+      show_error_popup("Cannot initialize logging.", NULL,
+		       LOG_FILE_HINT);
       return -r;
     }
 
   LOG_INF("rdi-installer started");
 
-  // XXX error check missing
   // XXX keymap ignored
-  read_config(rdii_config, &device, &image, &image1, &image2, NULL);
+  conf_err = read_config(rdii_config, &device, &image, &image1, &image2, NULL);
+  if (conf_err != ECONF_SUCCESS)
+    {
+      show_error_popup("Failed to read config file:",
+                       econf_errString(conf_err), NO_LOG_FILE_HINT);
+    }
 
   const char *tmpdir_template = "/tmp/rdi-installer-XXXXXX";
   r = mkdtemp_malloc(tmpdir_template, &rdii_tmp_dir_cleanup);
@@ -123,7 +126,7 @@ main(void)
       LOG_ERROR("Failed to create temporary directory (%s): %s",
 	     tmpdir_template, strerror(-r));
       show_error_popup("Failed to create temporary directory:",
-		       strerror(-r));
+		       strerror(-r), NO_LOG_FILE_HINT);
       return -r;
     }
   // we cannot make rdii_tmp_dir_cleanup global because of _cleanup_

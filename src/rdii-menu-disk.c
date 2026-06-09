@@ -12,6 +12,7 @@
 #include "basics.h"
 #include "devices.h"
 #include "rdii-menu.h"
+#include "logger.h"
 
 // Returns 1 if mounted, 0 if not mounted, -errno on error
 int
@@ -125,7 +126,8 @@ select_target_device(uint64_t minsize, char **device)
 
       r = show_warning_popup("!!! CRITICAL WARNING: DRIVE IS CURRENTLY MOUNTED !!!",
 			     msg,
-			     "Proceeding may cause data loss or corruption.");
+			     "Proceeding may cause data loss or corruption.",
+			     NO_LOG_FILE_HINT);
       if (r == 0)
 	return 0;
     }

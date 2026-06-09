@@ -26,8 +26,8 @@ get_vconsole_keymap(char **ret)
   error = econf_readFile(&key_file, "/etc/vconsole.conf", "=", "#");
   if (error != ECONF_SUCCESS)
     {
-      show_error_popup("Failed to read /etc/vconsole.conf:",
-		       econf_errString(error));
+      LOG_ERROR("Failed to read /etc/vconsole.conf:", econf_errString(error));
+      show_error_popup("Cannot read console keymap", NULL, LOG_FILE_HINT);
       return -error;
     }
 
@@ -62,14 +62,14 @@ set_keymap(const char *keymap)
   r = posix_spawnp(&pid, "loadkeys", NULL, NULL, argv, environ);
   if (r != 0)
     {
-      LOG_ERROR("Failed to spawn loadkeys: %s", strerror(r)); // XXX
+      LOG_ERROR("Failed to spawn loadkeys: %s", strerror(r));
       return -r;
     }
 
   if (waitpid(pid, &status, 0) == -1)
     {
       r = errno;
-      perror("waitpid failed"); // XXX
+      LOG_ERROR("waitpid failed: %s", strerror(r));
       return -r;
     }
 
@@ -81,7 +81,7 @@ set_keymap(const char *keymap)
     }
   else
     {
-      LOG_ERROR("loadkeys terminated abnormally"); // XXX
+      LOG_ERROR("loadkeys terminated abnormally");
       return -1;
     }
 }
@@ -160,7 +160,8 @@ load_system_keymaps(void)
   r = nftw("/usr/share/kbd/keymaps", process_file, 20, FTW_PHYS);
   if (r < 0)
     {
-      show_error_popup("nftw('/usr/share/kbd/keymaps') failed", NULL);
+      LOG_ERROR("nftw('/usr/share/kbd/keymaps') failed");
+      show_error_popup("Cannot read available keymapts", NULL, NO_LOG_FILE_HINT);
       return -1;
     }
 
@@ -322,6 +323,8 @@ select_keymap(char **ret)
       r = set_keymap(keymap);
       if (ret && r == 0)
 	*ret = TAKE_PTR(keymap);
+      else
+        show_error_popup("Cannot set keymap.", NULL, LOG_FILE_HINT);
       return r;
     }
 

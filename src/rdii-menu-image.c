@@ -115,7 +115,9 @@ get_url(const char *prefill, char **ret)
 	  curs_set(0);
 	  if (!url_is_valid(url, &error_msg))
 	    {
-	      if (show_warning_popup("URL doesn't seem to be valid:", error_msg, "Really use this URL?"))
+	      if (show_warning_popup("URL doesn't seem to be valid:",
+				     error_msg, "Really use this URL?",
+				     NO_LOG_FILE_HINT))
 		break;
 	      // Redraw screen
 	      print_global_header_footer(NULL);
@@ -401,7 +403,7 @@ get_file(const char *prefill, char **ret)
   return -ENOSYS;
 }
 
-int
+void
 select_installation_source(const char *prefill, char **ret)
 {
   const char *options[] = {
@@ -423,7 +425,7 @@ select_installation_source(const char *prefill, char **ret)
 	case 0: // url
 	  r = get_url(prefill?prefill:"https://", ret);
 	  if (r == 0)
-	    return 0;
+            return;
 	  break;
 	case 1: // local image
 	  char **new = ret;
@@ -431,15 +433,18 @@ select_installation_source(const char *prefill, char **ret)
 	  if (r == 0)
 	    {
 	      *ret = *new;
-	      return 0;
+	      return;
 	    }
 	  else
-	    LOG_ERROR("get_file() quit with %i: %s", r, strerror(-r));
+	    {
+              if (r == -ECANCELED)
+		LOG_INF("get_file() quit with %i: %s", r, strerror(-r));
+	      else
+	        LOG_ERROR("get_file() quit with %i: %s", r, strerror(-r));
+	    }
 	  break;
 	default:
-	  return 0;
-	  break;
+          return;
 	}
     }
-  return 0;
 }
