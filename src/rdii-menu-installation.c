@@ -138,8 +138,8 @@ write_net_image(const char *url, const char *device)
       pipe(p_tee_decomp) != 0 || pipe(p_decomp_dd) != 0)
     {
       r = errno;
-      LOG_ERROR("pipe allocation failed: %s", strerror(r));
-      show_error_popup("Cannot start image download.", NULL, LOG_FILE_HINT);
+      show_error_popup("Cannot start image download.",
+		       "Pipe allocation failed:", strerror(r));
       return -r;
     }
 
@@ -270,7 +270,12 @@ write_net_image(const char *url, const char *device)
       if (waitpid(pids[i], &status, 0) == -1)
 	{
 	  r = errno;
-	  LOG_ERROR("waitpid(%i) failed: %s\n", i, strerror(r)); // XXX show_error
+	  _cleanup_free_ char *err_msg = NULL;
+
+	  if (asprintf(&err_msg, "waitpid(%i) failed: %s\n", i, strerror(r)) < 0)
+            return -ENOMEM;
+          show_error_popup("Cannot finish image download correctl.",
+			   err_msg, NULL);
 	  return -r;
 	}
 
@@ -334,8 +339,8 @@ write_local_image(const char *file, const char *device)
   if (pipe(p_pv_decomp) != 0 || pipe(p_decomp_dd) != 0)
     {
       r = errno;
-      LOG_ERROR("pipe allocation failed: %s", strerror(r));
-      show_error_popup("Cannot start installation process.", NULL, LOG_FILE_HINT);
+      show_error_popup("Cannot start installation process.",
+		       "Pipe allocation failed: %s", strerror(r));
       return -r;
     }
 
@@ -516,8 +521,7 @@ run_installation(const char *url, const char *device)
 
       r = show_warning_popup("!!! CRITICAL WARNING: DRIVE IS CURRENTLY MOUNTED !!!",
 			     msg,
-			     "Proceeding may cause data loss or corruption.",
-			     NO_LOG_FILE_HINT);
+			     "Proceeding may cause data loss or corruption.");
       if (r == 0)
 	return -EINTR;
     }
@@ -543,8 +547,7 @@ run_installation(const char *url, const char *device)
 	{
 	  if (!show_warning_popup("Error downloading sha256 file:",
 				  r < 0?strerror(-r):curl_easy_strerror(r),
-				  "Continue without image verification?",
-				  NO_LOG_FILE_HINT))
+				  "Continue without image verification?"))
 	    return r;
 	}
       else
@@ -563,8 +566,7 @@ run_installation(const char *url, const char *device)
 	    {
 	      if (!show_warning_popup("Error downloading sha256.asc file:",
 				      r < 0?strerror(-r):curl_easy_strerror(r),
-				      "Continue without signature verification?",
-				      NO_LOG_FILE_HINT))
+				      "Continue without signature verification?"))
 		return r;
 	    }
 	  else
@@ -591,8 +593,7 @@ run_installation(const char *url, const char *device)
 	  r = -errno;
 	  if (!show_warning_popup("Cannot find sha256 file:",
 				  strerror(-r),
-				  "Continue without image verification?",
-				  NO_LOG_FILE_HINT))
+				  "Continue without image verification?"))
 	    return r;
 	}
       else
@@ -607,8 +608,7 @@ run_installation(const char *url, const char *device)
 	    {
 	      if (!show_warning_popup("Cannot find sha256.asc file:",
 				      r < 0?strerror(-r):curl_easy_strerror(r),
-				      "Continue without signature verification?",
-				      NO_LOG_FILE_HINT))
+				      "Continue without signature verification?"))
 		return r;
 	    }
 	  else
@@ -633,7 +633,7 @@ run_installation(const char *url, const char *device)
   print_global_header_footer(NULL);
   refresh();
   if (!show_warning_popup("WARNING: PERMANENT DATA LOSS - Are you absolutely sure?",
-			  url, device_line, NO_LOG_FILE_HINT))
+			  url, device_line))
     return 1;
 
   print_global_header_footer(NULL);
@@ -658,10 +658,10 @@ run_installation(const char *url, const char *device)
 	{
 	  _cleanup_free_ char *errmsg = NULL;
 	  show_error_popup("ERROR: SHA256 verification failed!",
-			   "Wiping invalid data and aborting...", NO_LOG_FILE_HINT);
+			   "Wiping invalid data and aborting...", NULL);
 	  if (zap_partition_tables(device, &errmsg) < 0)
 	    show_error_popup("ERROR: wiping invalid data failed!",
-			     errmsg, NO_LOG_FILE_HINT);
+			     errmsg, NULL);
 
 
 	  return -EIO;

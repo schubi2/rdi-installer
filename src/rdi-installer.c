@@ -102,10 +102,7 @@ main(void)
   r = log_init(rdii_log);
   if (r < 0)
     {
-      LOG_ERROR("Error initializing log file (%s): %s",
-             rdii_log, strerror(-r));
-      show_error_popup("Cannot initialize logging.", NULL,
-		       LOG_FILE_HINT);
+      show_error_popup("Cannot initialize log file:", rdii_log, strerror(-r));
       return -r;
     }
 
@@ -116,17 +113,15 @@ main(void)
   if (conf_err != ECONF_SUCCESS)
     {
       show_error_popup("Failed to read config file:",
-                       econf_errString(conf_err), NO_LOG_FILE_HINT);
+                       econf_errString(conf_err), NULL);
     }
 
   const char *tmpdir_template = "/tmp/rdi-installer-XXXXXX";
   r = mkdtemp_malloc(tmpdir_template, &rdii_tmp_dir_cleanup);
   if (r < 0)
     {
-      LOG_ERROR("Failed to create temporary directory (%s): %s",
-	     tmpdir_template, strerror(-r));
       show_error_popup("Failed to create temporary directory:",
-		       strerror(-r), NO_LOG_FILE_HINT);
+		       tmpdir_template, strerror(-r));
       return -r;
     }
   // we cannot make rdii_tmp_dir_cleanup global because of _cleanup_

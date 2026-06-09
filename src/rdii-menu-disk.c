@@ -126,8 +126,7 @@ select_target_device(uint64_t minsize, char **device)
 
       r = show_warning_popup("!!! CRITICAL WARNING: DRIVE IS CURRENTLY MOUNTED !!!",
 			     msg,
-			     "Proceeding may cause data loss or corruption.",
-			     NO_LOG_FILE_HINT);
+			     "Proceeding may cause data loss or corruption.");
       if (r == 0)
 	return 0;
     }

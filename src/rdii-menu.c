@@ -185,40 +185,41 @@ truncate_middle(const char *str, size_t max_len)
 
 // Returns 1 if YES, 0 if NO
 int
-show_warning_popup(const char *msg1, const char *msg2, const
-		   char *msg3, const bool show_log_file_hint)
+show_warning_popup(const char *headline,
+		   const char *descr_line1, const char *desc_line2)
 {
   unsigned int height = 7;
   unsigned int width;
 
-  LOG_WARN(msg1);
-  if (msg2)
+  if (headline)
     {
-      LOG_WARN(msg2);
+      LOG_WARN(headline);
+    }
+  if (descr_line1)
+    {
+      LOG_WARN(descr_line1);
       height++;
     }
-  if (msg3)
+  if (desc_line2)
     {
-      LOG_WARN(msg3);
+      LOG_WARN(desc_line2);
       height++;
     }
-  if (show_log_file_hint && log_file_hint())
-    height += 2;
 
-  width = strlen(msg1) + 6;
-  if (msg2)
+  width = strlen(headline) + 6;
+  if (descr_line1)
     {
-      if (strlen(msg2) > (size_t)(COLS - 8))
-	msg2 = truncate_middle(msg2, COLS-8);
-      if (strlen(msg2) + 6 > width)
-	width = strlen(msg2) + 6;
+      if (strlen(descr_line1) > (size_t)(COLS - 8))
+	descr_line1 = truncate_middle(descr_line1, COLS-8);
+      if (strlen(descr_line1) + 6 > width)
+	width = strlen(descr_line1) + 6;
     }
-  if (msg3)
+  if (desc_line2)
     {
-      if (strlen(msg3) > (size_t)(COLS - 8))
-	msg3 = truncate_middle(msg3, COLS-8);
-      if (strlen(msg3) + 6 > width)
-	width = strlen(msg3) + 6;
+      if (strlen(desc_line2) > (size_t)(COLS - 8))
+	desc_line2 = truncate_middle(desc_line2, COLS-8);
+      if (strlen(desc_line2) + 6 > width)
+	width = strlen(desc_line2) + 6;
     }
 
   int start_y = (LINES - height) / 2 - 2;
@@ -234,14 +235,11 @@ show_warning_popup(const char *msg1, const char *msg2, const
   while (1)
     {
       box(win, 0, 0);
-      mvwprintw(win, 2, (width - strlen(msg1)) / 2, "%s", msg1);
-      if (msg2)
-	mvwprintw(win, 3, (width - strlen(msg2)) / 2, "%s", msg2);
-      if (msg3)
-	mvwprintw(win, 4, (width - strlen(msg3)) / 2, "%s", msg3);
-      if (show_log_file_hint && log_file_hint())
-	      mvwprintw(win, 6, (width - strlen(log_file_hint())) / 2, "%s",
-			log_file_hint());
+      mvwprintw(win, 2, (width - strlen(headline)) / 2, "%s", headline);
+      if (descr_line1)
+	mvwprintw(win, 3, (width - strlen(descr_line1)) / 2, "%s", descr_line1);
+      if (desc_line2)
+	mvwprintw(win, 4, (width - strlen(desc_line2)) / 2, "%s", desc_line2);
 
       if (btn_selected == 0)
 	{
@@ -286,22 +284,28 @@ show_warning_popup(const char *msg1, const char *msg2, const
 }
 
 void
-show_error_popup(const char *msg1, const char *msg2,
-		 const bool show_log_file_hint)
+show_error_popup(const char *headline,
+		 const char *descr_line1, const char *descr_line2)
 {
-  int height = 7 + (msg2?1:0);
-  int width = strlen(msg1) + 6;
+  int height = 7 + (descr_line1?1:0);
+  int width = strlen(headline) + 6;
 
-  LOG_ERROR(msg1);
-  if (msg2)
-    {
-      LOG_ERROR(msg2);
-      if ((int)(strlen(msg2) + 6) > width)
-	width = strlen(msg2) + 6;
+  if (headline)
+    {  
+      LOG_ERROR(headline);
     }
-
-  if (show_log_file_hint && log_file_hint())
-    height += 2;
+  if (descr_line1)
+    {
+      LOG_ERROR(descr_line1);
+      if ((int)(strlen(descr_line1) + 6) > width)
+	width = strlen(descr_line1) + 6;
+    }
+  if (descr_line2)
+    {
+      LOG_ERROR(descr_line2);
+      if ((int)(strlen(descr_line2) + 6) > width)
+	width = strlen(descr_line2) + 6;
+    }  
 
   int start_y = (LINES - height) / 2 - 2;
   int start_x = (COLS - width) / 2;
@@ -309,12 +313,11 @@ show_error_popup(const char *msg1, const char *msg2,
   WINDOW *win = newwin(height, width, start_y, start_x);
   wbkgd(win, COLOR_PAIR(CP_WARNING));
   box(win, 0, 0);
-  mvwprintw(win, 2, (width - strlen(msg1)) / 2, "%s", msg1);
-  if (msg2)
-    mvwprintw(win, 3, (width - strlen(msg2)) / 2, "%s", msg2);
-  if (show_log_file_hint && log_file_hint())
-	  mvwprintw(win, 5, (width - strlen(log_file_hint())) / 2, "%s",
-		    log_file_hint());
+  mvwprintw(win, 2, (width - strlen(headline)) / 2, "%s", headline);
+  if (descr_line1)
+    mvwprintw(win, 3, (width - strlen(descr_line1)) / 2, "%s", descr_line1);
+  if (descr_line2)
+    mvwprintw(win, 3, (width - strlen(descr_line2)) / 2, "%s", descr_line2);
 
   mvwprintw(win, height - 3, width / 2 - 3, "[ OK ]");
   wrefresh(win);
@@ -513,7 +516,7 @@ show_main_menu(const char *def_image, const char *def_device)
 	case 4: // Start Installation
 	  if (isempty(image) || isempty(device))
 	    show_error_popup("Installation image and target device are required!",
-			     NULL, NO_LOG_FILE_HINT);
+			     NULL, NULL);
 	  else
 	    {
 	      int r = run_installation(image, device);
@@ -541,7 +544,7 @@ show_main_menu(const char *def_image, const char *def_device)
 	  return 0;
 	  break;
 	default:
-          show_error_popup("Internal Error", NULL, LOG_FILE_HINT);
+          show_error_popup("Internal Error", NULL, NULL);
 	  abort();
 	  break;
 	}

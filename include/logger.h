@@ -3,9 +3,6 @@
 
 #include <stdio.h>
 
-#define LOG_FILE_HINT true
-#define NO_LOG_FILE_HINT false
-
 // The values are almost the same as in syslog.h defined.
 typedef enum {
     LOG_LEVEL_TRACE = -1,

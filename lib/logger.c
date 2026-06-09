@@ -11,7 +11,6 @@
 #include "logger.h"
 
 static FILE *log_file = NULL;
-static char *hint_message = NULL;
 
 static LogLevel current_log_level = LOG_LEVEL_WARNING;
 
@@ -42,9 +41,6 @@ log_init(const char *filename)
   if (!log_file)
     return -errno;
 
-  if (asprintf(&hint_message, "Further information in %s", filename) < 0)
-    return -ENOMEM;
-
   return 0;
 }
 
@@ -52,11 +48,6 @@ void
 set_max_log_level(LogLevel level)
 {
   current_log_level = level;
-}
-
-const char *log_file_hint(void)
-{
-  return hint_message;
 }
 
 void

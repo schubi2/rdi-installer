@@ -17,10 +17,13 @@ extern const char *rdii_tmp_dir;
 
 extern void print_global_header_footer(const char *addkeys);
 extern void print_title(const char *title);
-extern int show_warning_popup(const char *msg1, const char *msg2,
-			      const char *msg3, const bool show_log_file_hint);
-extern void show_error_popup(const char *msg1, const char *msg2,
-			     const bool show_log_file_hint);
+extern int show_warning_popup(const char *headline,
+			      const char *descr_line1,
+			      const char *descr_line2);
+extern void show_error_popup(const char *headline,
+			     const char *descr_line1,
+			     const char *descr_line2);
+
 extern int choose_entry(int row, const char *options[], int num_options,
 		 	int start);
 

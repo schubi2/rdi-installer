@@ -26,8 +26,8 @@ get_vconsole_keymap(char **ret)
   error = econf_readFile(&key_file, "/etc/vconsole.conf", "=", "#");
   if (error != ECONF_SUCCESS)
     {
-      LOG_ERROR("Failed to read /etc/vconsole.conf:", econf_errString(error));
-      show_error_popup("Cannot read console keymap", NULL, LOG_FILE_HINT);
+      show_error_popup("Cannot read console keymap",
+		       "Failed to read /etc/vconsole.conf:", econf_errString(error));
       return -error;
     }
 
@@ -160,8 +160,7 @@ load_system_keymaps(void)
   r = nftw("/usr/share/kbd/keymaps", process_file, 20, FTW_PHYS);
   if (r < 0)
     {
-      LOG_ERROR("nftw('/usr/share/kbd/keymaps') failed");
-      show_error_popup("Cannot read available keymapts", NULL, NO_LOG_FILE_HINT);
+      show_error_popup("Cannot read available keymapts", "nftw('/usr/share/kbd/keymaps') failed", NULL);
       return -1;
     }
 
@@ -324,7 +323,7 @@ select_keymap(char **ret)
       if (ret && r == 0)
 	*ret = TAKE_PTR(keymap);
       else
-        show_error_popup("Cannot set keymap.", NULL, LOG_FILE_HINT);
+        show_error_popup("Cannot set keymap.", NULL, NULL);
       return r;
     }
 

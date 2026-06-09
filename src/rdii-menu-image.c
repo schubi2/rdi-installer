@@ -116,8 +116,7 @@ get_url(const char *prefill, char **ret)
 	  if (!url_is_valid(url, &error_msg))
 	    {
 	      if (show_warning_popup("URL doesn't seem to be valid:",
-				     error_msg, "Really use this URL?",
-				     NO_LOG_FILE_HINT))
+				     error_msg, "Really use this URL?"))
 		break;
 	      // Redraw screen
 	      print_global_header_footer(NULL);
