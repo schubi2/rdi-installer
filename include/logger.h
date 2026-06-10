@@ -33,7 +33,7 @@ const char* log_level_to_str(LogLevel level);
 // Convenience Macros
 // -----------------------------------------------------------------------------
 // Call this at the start of a function to log its execution and arguments
-#define LOG_FUN(...) \
+#define MSG_FUNC(...) \
     log_write(LOG_LEVEL_TRACE, __FILE__, __LINE__, __func__, "CALLED with args: " __VA_ARGS__)
 
 // General purpose logging macros for use anywhere

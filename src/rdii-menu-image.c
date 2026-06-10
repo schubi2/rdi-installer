@@ -244,7 +244,7 @@ load_directory(const char *path,
   int capacity = 42;
   int count = 0;
 
-  LOG_FUN("path='%s'", path);
+  MSG_FUNC("path='%s'", path);
 
   entries = malloc(capacity * sizeof(entry));
   if (!entries)
@@ -307,7 +307,7 @@ get_file(const char *prefill, char **ret)
   int num_options = 0;
   int r;
 
-  LOG_FUN("prefill='%s', ret='%s'", strna(prefill), strna(*ret));
+  MSG_FUNC("prefill='%s', ret='%s'", strna(prefill), strna(*ret));
 
   if (!ret)
     {

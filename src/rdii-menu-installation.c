@@ -31,7 +31,7 @@ verify_signature(const char *file, const char *key)
   int status;
   int r;
 
-  LOG_FUN("file='%s', key='%s'", file, key);
+  MSG_FUNC("file='%s', key='%s'", file, key);
 
   char *argv[] = {"gpgv", "--keyring", "/etc/systemd/import-pubring.gpg",
 		  (char *)key, (char *)file, NULL};
@@ -79,7 +79,7 @@ fix_partition_table(const char *device)
 {
   int r;
 
-  LOG_FUN("device='%s'", device);
+  MSG_FUNC("device='%s'", device);
 
   r = exec_cmd("/usr/sbin/sgdisk", "sgdisk", "-e", (char *)device, NULL);
 
@@ -119,7 +119,7 @@ write_net_image(const char *url, const char *device)
   int p_wget_tee[2], p_tee_sha[2], p_tee_decomp[2], p_decomp_dd[2];
   int r;
 
-  LOG_FUN("url='%s', device='%s'", url, device);
+  MSG_FUNC("url='%s', device='%s'", url, device);
 
   if (endswith(url, ".xz"))
     decomp_args = decomp_xz_args;
@@ -321,7 +321,7 @@ write_local_image(const char *file, const char *device)
   int p_pv_decomp[2], p_decomp_dd[2];
   int r;
 
-  LOG_FUN("file='%s', device='%s'", file, device);
+  MSG_FUNC("file='%s', device='%s'", file, device);
 
   if (endswith(file, ".xz"))
     decomp_args = decomp_xz_args;
@@ -461,7 +461,7 @@ sha256_eq(const char *path1, const char *path2)
   _cleanup_fclose_ FILE *fp2 = NULL;
   int r;
 
-  LOG_FUN("path1='%s', path2='%s'", path1, path2);
+  MSG_FUNC("path1='%s', path2='%s'", path1, path2);
 
   fp1 = fopen(path1, "r");
   if (!fp1)
@@ -510,7 +510,7 @@ run_installation(const char *url, const char *device)
   bool is_neturl = startswith(url, "https://") || startswith(url, "http://");
   int r;
 
-  LOG_FUN("url='%s', device='%s'", strna(url), strna(device));
+  MSG_FUNC("url='%s', device='%s'", strna(url), strna(device));
 
   if (is_device_mounted(device))
     {

@@ -134,13 +134,14 @@ main_disk(int argc, char **argv)
 	  if (disk[i].size < minsize)
 	    continue;
 	}
-      MSG_INFO("%s - %s (%s, %.1f GB)", disk[i].device,
-	      strunknown(disk[i].model), disk[i].bus, disk[i].size_gb);
+
+      char *kind = "";
       if (disk[i].is_default_device)
-	fputs(" [Default]", stdout);
+        kind = " [Default]";
       if (disk[i].is_boot_device)
-	fputs(" [Booted]", stdout);
-      fputs("\n", stdout);
+        kind = " [Booted]";
+      MSG_INFO("%s - %s (%s, %.1f GB) %s", disk[i].device,
+	       strunknown(disk[i].model), disk[i].bus, disk[i].size_gb, kind);
     }
 
   return 0;

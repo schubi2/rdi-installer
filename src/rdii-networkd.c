@@ -152,7 +152,7 @@ merge_configs(ip_t *cfg)
   bool found = false;
   int r;
 
-  MSG_INFO("merge_configs called");
+  MSG_FUNC("merge_configs called");
 
   if (used_configs == MAX_INTERFACES)
     {
@@ -217,7 +217,7 @@ write_network_config(const char *output_dir, int line_num, ip_t *cfg)
                output_dir, IP_PREFIX, line_num) < 0)
     return -ENOMEM;
 
-  MSG_INFO("Entry %2d: %s config", line_num, filepath);
+  MSG_DEBUG("Entry %2d: %s config", line_num, filepath);
 
   fp = fopen(filepath, "w");
   if (!fp)
@@ -328,8 +328,8 @@ write_netdev_file(const char *output_dir, vlan_t *vlan)
                output_dir, NETDEV_PREFIX, vlan->name) < 0)
     return -ENOMEM;
 
-  MSG_INFO("Creating vlan netdev: %s for vlan id '%d'", filepath,
-          vlan->id);
+  MSG_DEBUG("Creating vlan netdev: %s for vlan id '%d'", filepath,
+	    vlan->id);
 
   fp = fopen(filepath, "w");
   if (!fp)
@@ -414,7 +414,7 @@ get_vlan_id(const char *vlan_name, int *ret)
 	    vlans[nr_vlanids].id = vlanid;
 	    vlans[nr_vlanids].name = vlan_name;
 	    nr_vlanids++;
-            MSG_INFO("Stored VLAN ID: %d (%s)", vlanid, vlan_name);
+            MSG_DEBUG("Stored VLAN ID: %d (%s)", vlanid, vlan_name);
 	  }
 	*ret = vlanid;
 	return 0;
@@ -472,8 +472,6 @@ main(int argc, char *argv[])
   bool verify_only = false;
   int r;
 
-  set_max_log_level(LOG_LEVEL_WARNING);
-
   while (1)
     {
       int c;
@@ -516,7 +514,8 @@ main(int argc, char *argv[])
           print_help();
           return 0;
         case 'v':
-          fprintf(stdout, "rdii-networkd (%s) %s\n", PACKAGE, VERSION);
+          set_max_log_level(LOG_LEVEL_INFO);
+          MSG_INFO("rdii-networkd (%s) %s\n", PACKAGE, VERSION);
           return 0;
         default:
           print_error();
@@ -666,7 +665,7 @@ main(int argc, char *argv[])
 	line[nread-1] = '\0';
     }
 
-  MSG_INFO("cmdline=%s", line);
+  MSG_DEBUG("cmdline=%s", line);
 
   // Parse loop handling quotes
   char *cp = line;
@@ -723,7 +722,7 @@ main(int argc, char *argv[])
 		r = parse_vlan_arg(nr++, arg_start+5, &cfg);
 	      else
 		{
-		  MSG_INFO("skip: '%s'\n", arg_start);
+		  MSG_DEBUG("skip: '%s'\n", arg_start);
 		  r = 255;
 		}
 
