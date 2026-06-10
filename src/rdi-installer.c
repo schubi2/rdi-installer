@@ -34,7 +34,7 @@ read_config(const char *config, char **ret_device,
 
   if (error == ECONF_NOFILE)
     {
-      LOG_WARN("No rdi-installer configuration file found");
+      MSG_WARN("No rdi-installer configuration file found");
       return ECONF_SUCCESS;
     }
 
@@ -81,7 +81,7 @@ rm_rf_and_free(char *p)
   r = rm_rf(p);
 
   if (r < 0)
-    LOG_ERROR("Removal of '%s' failed: %s", p, strerror(-r));
+    MSG_ERROR("Removal of '%s' failed: %s", p, strerror(-r));
 
   return mfree(p);
 }
@@ -115,7 +115,7 @@ main(void)
       return -r;
     }
 
-  LOG_INF("rdi-installer started");
+  MSG_INFO("rdi-installer started");
 
   // XXX keymap ignored
   conf_err = read_config(rdii_config, &device, &image, &image1, &image2, NULL);
@@ -138,7 +138,7 @@ main(void)
 
   r = rdii_menu(image, image1, image2, device);
 
-  LOG_INF("rdi-installer stopped (retval=%i)", r);
+  MSG_INFO("rdi-installer stopped (retval=%i)", r);
 
   log_close();
 

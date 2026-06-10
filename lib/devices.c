@@ -107,7 +107,7 @@ get_devices(device_t **ret, int *ret_count)
   r = efi_get_boot_source(&efi);
   if (r < 0 && r != -ENODEV && r != -EOPNOTSUPP && r != -ENOENT)
     {
-      LOG_ERROR("Getting default EFI boot partition failed: %s",
+      MSG_ERROR("Getting default EFI boot partition failed: %s",
               strerror(-r));
       return -r;
     }
@@ -122,14 +122,14 @@ get_devices(device_t **ret, int *ret_count)
   _cleanup_(udev_unrefp) struct udev *udev = udev_new();
   if (!udev)
     {
-      LOG_ERROR("Cannot create udev context.");
+      MSG_ERROR("Cannot create udev context.");
       return ENOMEM;
     }
 
   _cleanup_(udev_enumerate_unrefp) struct udev_enumerate *enumerate = udev_enumerate_new(udev);
   if (!udev)
     {
-      LOG_ERROR( "Cannot create udev enumeration context.");
+      MSG_ERROR( "Cannot create udev enumeration context.");
       return 1;
     }
 
@@ -229,7 +229,7 @@ get_devices(device_t **ret, int *ret_count)
 
       if (count == 128)
 	{
-          LOG_ERROR("Error: you have too many disks!");
+          MSG_ERROR("Error: you have too many disks!");
 	  return -E2BIG;
 	}
     }

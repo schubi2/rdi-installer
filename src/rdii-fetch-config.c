@@ -40,7 +40,7 @@ print_help(void)
 static void
 print_error(void)
 {
-  LOG_ERROR("Try `rdii-fetch-config --help' for more information.");
+  MSG_ERROR("Try `rdii-fetch-config --help' for more information.");
 }
 
 static int
@@ -174,14 +174,14 @@ main(int argc, char **argv)
 
   if (argc > 0)
     {
-      LOG_ERROR("rdii-fetch-config: Too many arguments.");
+      MSG_ERROR("rdii-fetch-config: Too many arguments.");
       print_error();
       return EINVAL;
     }
 
   if (!isempty(arg_url) && no_network)
     {
-      LOG_ERROR("The options '--local-only' and '--url' cannot be used together.");
+      MSG_ERROR("The options '--local-only' and '--url' cannot be used together.");
       print_error();
       return EINVAL;
     }
@@ -189,28 +189,28 @@ main(int argc, char **argv)
   r = mkdir_p(output_dir, 0755);
   if (r < 0)
     {
-      LOG_ERROR("Error creating config directory '%s': %s",
+      MSG_ERROR("Error creating config directory '%s': %s",
 	     output_dir, strerror(-r));
       return -r;
     }
 
   if (asprintf(&cfgfile, "%s/rdii-config", output_dir) < 0)
     {
-      LOG_ERROR("Out of memory!");
+      MSG_ERROR("Out of memory!");
       return ENOMEM;
     }
 
   if (!isempty(arg_url) && !no_network)
     {
-      LOG_INF("Attempting download (%s)...", arg_url);
+      MSG_INFO("Attempting download (%s)...", arg_url);
       r = curl_download_file(arg_url, cfgfile);
       if (r != 0)
 	{
-	  LOG_ERROR("Error downloading '%s' and storing to '%s': %s",
+	  MSG_ERROR("Error downloading '%s' and storing to '%s': %s",
 		 arg_url, cfgfile, r < 0?strerror(-r):curl_easy_strerror(r));
 	  return -r;
 	}
-      LOG_INF("Download successful! Saved to '%s'", cfgfile);
+      MSG_INFO("Download successful! Saved to '%s'", cfgfile);
       return 0;
     }
   else
@@ -219,7 +219,7 @@ main(int argc, char **argv)
       r = efi_get_boot_source(&efi);
       if (r < 0)
 	{
-	  LOG_ERROR("Couldn't get boot source: %s", strerror(-r));
+	  MSG_ERROR("Couldn't get boot source: %s", strerror(-r));
 	  return -r;
 	}
       if (!isempty(efi->url))
@@ -228,27 +228,27 @@ main(int argc, char **argv)
 
 	  if (no_network)
 	    {
-	      LOG_INF("Booted from network but run with \"--local-only\", skipping");
+	      MSG_INFO("Booted from network but run with \"--local-only\", skipping");
 	      return 0;
 	    }
 
 	  r = replace_suffix(efi->url, ".efi", ".rdii-config", &config_url);
 	  if (r < 0)
 	    {
-	      LOG_ERROR("Error in string manipulation: %s",
+	      MSG_ERROR("Error in string manipulation: %s",
 		     strerror(-r));
 	      return -r;
 	    }
 
-	  LOG_INF("Attempting download (%s)...", config_url);
+	  MSG_INFO("Attempting download (%s)...", config_url);
 	  r = curl_download_file(config_url, cfgfile);
 	  if (r != 0 && r != CURLE_HTTP_RETURNED_ERROR)
 	    {
-	      LOG_ERROR("Error downloading '%s' and storing to '%s': %s",
+	      MSG_ERROR("Error downloading '%s' and storing to '%s': %s",
 		     config_url, cfgfile, r < 0?strerror(-r):curl_easy_strerror(r));
 	      return -r;
 	    }
-	  LOG_INF("Download successful! Saved to '%s'", cfgfile);
+	  MSG_INFO("Download successful! Saved to '%s'", cfgfile);
 	}
       else if (!isempty(efi->partition) && !isempty(efi->image))
 	{
@@ -258,14 +258,14 @@ main(int argc, char **argv)
 	  r = replace_suffix(efi->image, ".efi", ".rdii-config", &mod_img_name);
 	  if (r < 0)
 	    {
-              LOG_ERROR("Error in string manipulation: %s",
+              MSG_ERROR("Error in string manipulation: %s",
 		     strerror(-r));
 	      return -r;
 	    }
 
 	  if (asprintf(&src_cfg, "/boot/efi%s", mod_img_name) < 0)
 	    {
-	      LOG_ERROR("Out of memory!");
+	      MSG_ERROR("Out of memory!");
 	      return ENOMEM;
 	    }
 
@@ -278,11 +278,11 @@ main(int argc, char **argv)
 	    }
 	  else
 	    {
-	      LOG_INF("Attempting copying %s...", src_cfg);
+	      MSG_INFO("Attempting copying %s...", src_cfg);
 	      r = copy_file(src_cfg, cfgfile);
 	      if (r < 0)
 		{
-		  LOG_ERROR("Error copying '%s' to '%s': %s",
+		  MSG_ERROR("Error copying '%s' to '%s': %s",
 			 src_cfg, cfgfile, strerror(-r));
 		  return -r;
 		}
@@ -290,11 +290,11 @@ main(int argc, char **argv)
 	}
       else if (efi->is_pxe_boot)
 	{
-	  LOG_INF("PXE Boot (%s), fetching config not possible.", efi->entry);
+	  MSG_INFO("PXE Boot (%s), fetching config not possible.", efi->entry);
 	}
       else
 	{
-	  LOG_ERROR("No config URL provided and boot source couldn't be determined.");
+	  MSG_ERROR("No config URL provided and boot source couldn't be determined.");
 	  return ENOENT;
 	}
     }

@@ -193,16 +193,16 @@ show_warning_popup(const char *headline,
 
   if (headline)
     {
-      LOG_WARN(headline);
+      MSG_WARN(headline);
     }
   if (descr_line1)
     {
-      LOG_WARN(descr_line1);
+      MSG_WARN(descr_line1);
       height++;
     }
   if (descr_line2)
     {
-      LOG_WARN(descr_line2);
+      MSG_WARN(descr_line2);
       height++;
     }
 
@@ -292,19 +292,19 @@ show_error_popup(const char *headline,
 
   if (headline)
     {  
-      LOG_ERROR(headline);
+      MSG_ERROR(headline);
       height++;
     }
   if (descr_line1)
     {
-      LOG_ERROR(descr_line1);
+      MSG_ERROR(descr_line1);
       height++;
       if ((int)(strlen(descr_line1) + 6) > width)
 	width = strlen(descr_line1) + 6;
     }
   if (descr_line2)
     {
-      LOG_ERROR(descr_line2);
+      MSG_ERROR(descr_line2);
       height++;      
       if ((int)(strlen(descr_line2) + 6) > width)
 	width = strlen(descr_line2) + 6;
