@@ -108,7 +108,7 @@ main(void)
 
   if (getuid())
     rdii_log = "rdii.log";
-  r = log_init(rdii_log);
+  r = log_init(NO_CONSOLE_LOG, rdii_log);
   if (r < 0)
     {
       show_error_popup("Cannot initialize log file:", rdii_log, strerror(-r));

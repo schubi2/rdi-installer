@@ -10,6 +10,7 @@
 #include "logger.h"
 
 static FILE *log_file = NULL;
+static bool log_console = CONSOLE_LOG;
 
 static LogLevel current_log_level = LOG_LEVEL_WARNING;
 
@@ -26,8 +27,10 @@ const char* log_level_to_str(LogLevel level) {
 }
 
 int
-log_init(const char *filename)
+log_init(const bool console_log,
+         const char *filename)
 {
+  log_console = console_log;
   current_log_level = LOG_LEVEL_WARNING;
   if (log_file)
     return 0;
@@ -69,7 +72,7 @@ log_write(LogLevel level, const char *file, int line, const char *func,
 
   va_start(args, fmt);
 
-  if (!log_file)
+  if (log_console || !log_file)
     {
       /* Writing to TTY if availabel. Otherwise redirect to journald automatically. */
 
@@ -86,7 +89,10 @@ log_write(LogLevel level, const char *file, int line, const char *func,
           vprintf(fmt, args);
           putchar('\n');
 	}
-    } else {
+    }
+
+  if (log_file)
+    {
       /* Writing EVERYTHING to log file; except EFI setting if it is not set explicit */
       if (level == LOG_LEVEL_EFIVARS &&  current_log_level != LOG_LEVEL_EFIVARS)
         return;

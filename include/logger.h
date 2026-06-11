@@ -13,18 +13,22 @@ typedef enum {
     LOG_LEVEL_EFIVARS = 8
 } LogLevel;
 
-// Initialize and close the logger
+#define CONSOLE_LOG true
+#define NO_CONSOLE_LOG false
 
-// If log_init will be not called or filename is NULL, the logging will be done to console if a TTY
-// is available. Otherwise it will be written to journald. The default log level will be LOG_LEVEL_WARNING.
-// LOG_LEVEL_TRACE will NOT be logged to console or TTY.
+// Initialize the logger
+
+// console_log: The logs can be written to console.
+// If the console is not available it will be written to journald.
+// filename:    If it is not NULL, the logging will written into this file too.
 //
-// If there is a valid filename, all logging (TRACE included) will be written to it.
-// The default log level will be LOG_LEVEL_INFO in that case.
-int log_init(const char *filename);
-const char *log_file_hint(void);
+// If log_init is not called, the default values are : console_log = CONSOLE_LOG; filename = NULL
+int log_init(const bool console_log, const char *filename);
 
+// The default log level is LOG_LEVEL_WARNING
 void set_max_log_level(LogLevel level);
+
+// Close the logger
 void log_close(void);
 
 // The core logging functions (do not call directly, use macros)
