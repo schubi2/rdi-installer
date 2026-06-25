@@ -11,7 +11,7 @@
 static FILE *log_file = NULL;
 static bool log_console = CONSOLE_LOG;
 
-static LogLevel current_log_level = LOG_LEVEL_WARNING;
+static LogLevel current_log_level = LOG_LEVEL_INFO;
 
 const char* log_level_to_str(LogLevel level) {
     switch (level) {
@@ -30,12 +30,8 @@ log_init(const bool console_log,
          const char *filename)
 {
   log_console = console_log;
-  current_log_level = LOG_LEVEL_WARNING;
   if (log_file)
     return 0;
-  else
-    /* console and systemd standard log level */
-    set_max_log_level(LOG_LEVEL_INFO);
 
   if (filename)
     {
