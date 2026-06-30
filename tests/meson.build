@@ -1,6 +1,10 @@
 shellcheck_exe = find_program('shellcheck', required : false)
 
 if shellcheck_exe.found()
+test('shellcheck-rdii-proxy-setup',
+  shellcheck_exe,
+  args: [files('../scripts/rdii-proxy-setup.sh')]
+)
 test('shellcheck-rdii-ssh-setup',
   shellcheck_exe,
   args: [files('../scripts/rdii-ssh-setup.sh')]

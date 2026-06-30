@@ -57,8 +57,8 @@ With `rdii.url1` and `rdii.url2` additional images can be specified. At the star
 ### Configuration file
 
 The rdii-config configuration file is used by rdi-installer,
-rdii-networkd and rdii-ssh-setup.service to provision installation
-sources and targets, network interfaces and remote SSH access.
+rdii-networkd, rdii-proxy-setup.service and rdii-ssh-setup.service to provision installation
+sources and targets, network interfaces, proxys and remote SSH access.
 It follows a simple syntax:
 * One key=value parameter is defined per line.
 * Empty lines are ignored.
@@ -143,6 +143,20 @@ The _interface_ specifier supports:
 
 Vlans can be setup by adding a vlan id to the _interface_
 (e.g. `eth0.42`). The interface will be configured for **tagged only** setups.
+
+### rdii-proxy-setup
+
+This script provides a systemd service and shell script that parses
+the Linux kernel command line (`/proc/cmdline`) and config file at
+boot time and setups the /etc/sysconfig/proxy file.
+The supported proxy URL format is protocol://[user[:password]@]host[:port].
+
+The format for the kernel command line and config file is:
+``` sh
+proxy=protocol://[user[:password]@]host[:port]
+```
+
+Example: `proxy=http://192.168.122.1:3128`
 
 ### rdii-ssh-setup
 

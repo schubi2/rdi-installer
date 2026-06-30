@@ -1,0 +1,13 @@
+[Unit]
+Description=Configure sysconfig/proxy from Kernel Command Line or config file
+After=local-fs.target
+After=rdii-fetch-config.service
+Before=sshd.service getty.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/rdii-proxy-setup
+
+[Install]
+WantedBy=multi-user.target
