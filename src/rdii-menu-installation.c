@@ -20,6 +20,7 @@
 #include "logger.h"
 #include "zap_partition_table.h"
 #include "exec_cmd.h"
+#include "rdii-ssh-hostkey.h"
 
 extern char **environ;
 
@@ -508,13 +509,15 @@ sha256_eq(const char *path1, const char *path2)
 }
 
 int
-run_installation(const char *url, const char *device)
+run_installation(const char *url, const char *device, bool preserve_ssh_hostkey)
 {
   _cleanup_free_ char *d_sha256_fn = NULL;
+  _cleanup_free_ char *ssh_backup_dir = NULL;
   bool is_neturl = startswith(url, "https://") || startswith(url, "http://");
   int r;
 
-  MSG_FUNC("url='%s', device='%s'", strna(url), strna(device));
+  MSG_FUNC("url='%s', device='%s', preserve_ssh_hostkey=%s", strna(url), strna(device),
+           strbool(preserve_ssh_hostkey));
 
   if (is_device_mounted(device))
     {
@@ -648,6 +651,23 @@ run_installation(const char *url, const char *device)
 			  url, device_line))
     return 1;
 
+  if (preserve_ssh_hostkey)
+    {
+      if (asprintf(&ssh_backup_dir, "%s/ssh-backup", rdii_tmp_dir) < 0)
+        return -ENOMEM;
+
+      MSG_INFO("Attempting to backup SSH host keys from %s", device);
+      r = rdii_ssh_hostkey_backup(device, ssh_backup_dir);
+      if (r < 0)
+        {
+          MSG_WARN("SSH host key backup failed: %s", strerror(-r));
+        }
+      else if (r > 0)
+        {
+          MSG_INFO("Successfully backed up %d SSH host key(s)", r);
+        }
+    }
+
   print_global_header_footer(NULL);
   const char *start_installation_str = "Starting installation...";
   mvprintw(2, (COLS - strlen(start_installation_str)) / 2,
@@ -692,6 +712,21 @@ run_installation(const char *url, const char *device)
   fd = open(device, O_RDWR | O_SYNC);
   if (fd > 0) // ignore error if we cannot open device
     ioctl(fd, BLKRRPART);
+
+  if (preserve_ssh_hostkey && ssh_backup_dir)
+    {
+      MSG_INFO("Attempting to restore SSH host keys to %s", device);
+      sleep(2);
+      r = rdii_ssh_hostkey_restore(device, ssh_backup_dir);
+      if (r < 0)
+        {
+          MSG_WARN("SSH host key restore failed: %s", strerror(-r));
+        }
+      else if (r > 0)
+        {
+          MSG_INFO("Successfully restored %d SSH host key(s)", r);
+        }
+    }
 
   keywait(LINES-3, 0, NULL, 60);
 

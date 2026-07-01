@@ -63,6 +63,7 @@ libcurl = dependency('libcurl', required: true)
 libudev = dependency('libudev', required: true)
 libncurses = dependency('ncursesw', required: true)
 libeconf = dependency('libeconf', required: true)
+libblkid = dependency('blkid', required: true)
 
 libefivars_c = files('lib/efivars.c')
 libefivars = static_library(
@@ -82,11 +83,12 @@ libdevices = static_library(
 
 librdii_c = files('lib/mkdir_p.c', 'lib/tmpfile-util.c', 'lib/logger.c',
                   'lib/zap_partition_table.c', 'lib/rm_rf.c', 'lib/download.c',
-                  'lib/exec_cmd.c')
+                  'lib/exec_cmd.c', 'src/rdii-ssh-hostkey.c')
 librdii = static_library(
   'rdii',
   librdii_c,
   include_directories : inc,
+  dependencies : [libblkid],
   install : false
 )
 

@@ -529,22 +529,12 @@ efi_boot_current(efivars_t **res)
   return -ENOENT;
 }
 
-static inline void
-closedirp(DIR **p)
-{
-  if (*p)
-    {
-      closedir(*p);
-      *p = NULL;
-    }
-}
-
 // Translates a PCI address to a /dev/ node by traversing sysfs
 static int
 find_device_by_pci(uint8_t pci_device, uint8_t pci_function, char **res_dev)
 {
   _cleanup_free_ char *pci_addr = NULL;
-  _cleanup_(closedirp) DIR *dir = NULL;
+  _cleanup_closedir_ DIR *dir = NULL;
   int r;
 
   if (_efivars_debug)

@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdbool.h>
+#include <dirent.h>
 
 #define _unused_ __attribute__((unused))
 #define _pure_ __attribute__((__pure__))
@@ -50,10 +51,18 @@ static inline void fclosep(FILE **f) {
   *f = NULL;
 }
 
+static inline void closedirp(DIR **p) {
+  if (*p)
+    closedir(*p);
+  *p = NULL;
+}
+
+
 #define _cleanup_(x) __attribute__((__cleanup__(x)))
 #define _cleanup_close_ _cleanup_(closep)
 #define _cleanup_fclose_ _cleanup_(fclosep)
 #define _cleanup_free_ _cleanup_(freep)
+#define _cleanup_closedir_ _cleanup_(closedirp)
 
 
 /* from string-util-fundamental.h */

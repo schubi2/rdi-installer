@@ -19,7 +19,7 @@ const char *rdii_log = "/var/log/rdi-installer.log";
 static econf_err
 read_config(const char *config, char **ret_device,
 	    char **ret_url, char **ret_url1, char **ret_url2,
-	    char **ret_keymap)
+	    char **ret_keymap, bool *ret_preserve_ssh_hostkey)
 {
   _cleanup_(econf_freeFilep) econf_file *key_file = NULL;
   _cleanup_free_ char *device = NULL;
@@ -27,6 +27,7 @@ read_config(const char *config, char **ret_device,
   _cleanup_free_ char *url1 = NULL;
   _cleanup_free_ char *url2 = NULL;
   _cleanup_free_ char *keymap = NULL;
+  bool preserve_ssh_hostkey = false;
   econf_err error;
 
   error = econf_readFile(&key_file, config,
@@ -58,6 +59,14 @@ read_config(const char *config, char **ret_device,
   error = econf_getStringValue(key_file, NULL, "rdii.keymap", &keymap);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
     return error;
+
+  error = econf_getBoolValue(key_file, NULL, "rdii.preserve-ssh-hostkey", &preserve_ssh_hostkey);
+  if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+    return error;
+  // if new values get's added later: only do the assignment if a key
+  // was really found, and only after reading the last variable
+  if (error == ECONF_SUCCESS && ret_preserve_ssh_hostkey)
+    *ret_preserve_ssh_hostkey = preserve_ssh_hostkey;
 
   if (ret_device)
     *ret_device = TAKE_PTR(device);
@@ -101,6 +110,7 @@ main(void)
   _cleanup_free_ char *image1 = NULL;
   _cleanup_free_ char *image2 = NULL;
   _cleanup_free_ char *device = NULL;
+  bool preserve_ssh_hostkey = false;
   int r;
   econf_err conf_err;
 
@@ -118,7 +128,7 @@ main(void)
   MSG_INFO("rdi-installer started");
 
   // XXX keymap ignored
-  conf_err = read_config(rdii_config, &device, &image, &image1, &image2, NULL);
+  conf_err = read_config(rdii_config, &device, &image, &image1, &image2, NULL, &preserve_ssh_hostkey);
   if (conf_err != ECONF_SUCCESS)
     {
       show_error_popup("Failed to read config file:",
@@ -136,7 +146,7 @@ main(void)
   // we cannot make rdii_tmp_dir_cleanup global because of _cleanup_
   rdii_tmp_dir = rdii_tmp_dir_cleanup;
 
-  r = rdii_menu(image, image1, image2, device);
+  r = rdii_menu(image, image1, image2, device, preserve_ssh_hostkey);
 
   MSG_INFO("rdi-installer stopped (retval=%i)", r);
 

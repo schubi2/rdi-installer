@@ -35,7 +35,7 @@ extern int select_keymap(char **device);
 extern int select_target_device(uint64_t minsize, char **device);
 extern void select_installation_source(const char *prefill, char **ret);
 extern int show_sysinfo(void);
-extern int run_installation(const char *url, const char *device);
+extern int run_installation(const char *url, const char *device, bool preserve_ssh_hostkey);
 extern void init_ncurses(void);
 extern int rdii_menu(const char *image, const char *image1,
-		     const char *image2, const char *device);
+		     const char *image2, const char *device, bool preserve_ssh_hostkey);

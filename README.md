@@ -51,8 +51,19 @@ The options can be provided either via the kernel cmdline during boot or with a 
 | rdii.url  | http url/local file | Specifies a the URL or the filename under which the to be installed image can be downloaded |
 | rdii.device | /dev/... | Device on which the image should be installed |
 | rdii.keymap | name | Configures the key mapping table for the keyboard |
+| rdii.preserve-ssh-hostkey | true/false/yes/no/1/0 | Preserves SSH host keys from the old installation and restores them to the new installation |
 
 With `rdii.url1` and `rdii.url2` additional images can be specified. At the start of `rdi-installer`, the user has to selected the one he wants to install.
+
+#### SSH Host Key Preservation
+
+The `rdii.preserve-ssh-hostkey` option enables automatic preservation of SSH host keys during installation. When enabled, the installer will:
+
+1. Before writing the new image, scan all Linux partitions on the target device for `/etc/ssh/ssh_host_*` files
+2. Back up any found SSH host keys to a temporary directory
+3. After writing and mounting the new image, restore the backed-up keys to the new installation's `/etc/ssh/` directory (only if no host keys already exist in the new installation)
+
+This feature is useful when reinstalling a system and you want to avoid SSH "host key changed" warnings for clients that previously connected to the machine.
 
 ### Configuration file
 
@@ -81,6 +92,7 @@ rdii.device=/dev/vda
 rdii.url=https://download.opensuse.org/tumbleweed/appliances/Tumbleweed-OEM.x86_64-KDE.raw.xz
 rdii.url1=https://download.opensuse.org/tumbleweed/appliances/openSUSE-MicroOS.x86_64-SelfInstall.raw.xz
 rdii.keymap=de-nodeadkeys
+rdii.preserve-ssh-hostkey=true
 ssh=1
 ssh.key=ZXhhbXBsZSBzc2ggcHVibGljIGtleQo=
 ```

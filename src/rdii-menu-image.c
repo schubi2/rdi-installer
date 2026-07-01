@@ -219,16 +219,6 @@ compare_entries(const void *a, const void *b)
   return strcmp(entry_a->name, entry_b->name);
 }
 
-static inline void
-closedirp(DIR **p)
-{
-  if (*p)
-    {
-      closedir(*p);
-      *p = NULL;
-    }
-}
-
 /*
   Load directory entries, returns:
   >= 0 -> number of found entries
@@ -239,7 +229,7 @@ load_directory(const char *path,
 	       entry **entries_ret, size_t *entries_size_ret)
 {
   _cleanup_free_ entry *entries = NULL;
-  _cleanup_(closedirp) DIR *dir;
+  _cleanup_closedir_ DIR *dir;
   struct dirent *ent;
   int capacity = 42;
   int count = 0;

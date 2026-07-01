@@ -415,7 +415,7 @@ show_post_menu(void)
 }
 
 static int
-show_main_menu(const char *def_image, const char *def_device)
+show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_hostkey)
 {
   uint64_t minsize = 10 * 1000ULL * 1000 * 1000; // 10G min disk size
   _cleanup_free_ char *image_entry = NULL;
@@ -522,7 +522,7 @@ show_main_menu(const char *def_image, const char *def_device)
 			     NULL, NULL);
 	  else
 	    {
-	      int r = run_installation(image, device);
+	      int r = run_installation(image, device, preserve_ssh_hostkey);
 	      if (r == 0)
 		{
 		  r = show_post_menu();
@@ -597,7 +597,7 @@ init_ncurses(void)
 
 int
 rdii_menu(const char *image0, const char *image1,
-	  const char *image2, const char *device)
+	  const char *image2, const char *device, bool preserve_ssh_hostkey)
 {
   const char *image = NULL;
   int r;
@@ -625,7 +625,7 @@ rdii_menu(const char *image0, const char *image1,
 	}
     }
 
-  r = show_main_menu(image, device);
+  r = show_main_menu(image, device, preserve_ssh_hostkey);
   endwin();
 
   return r;
