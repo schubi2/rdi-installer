@@ -17,7 +17,12 @@
 #define SSH_HOSTKEY_PATTERN "ssh_host_"
 
 typedef struct {
-  char **partitions;
+  char *path;
+  char *fstype;
+} partition_info_t;
+
+typedef struct {
+  partition_info_t *partitions;
   int count;
 } partition_list_t;
 
@@ -28,7 +33,10 @@ free_partition_list(partition_list_t *pl)
     return;
 
   for (int i = 0; i < pl->count; i++)
-    free(pl->partitions[i]);
+    {
+      free(pl->partitions[i].path);
+      free(pl->partitions[i].fstype);
+    }
   free(pl->partitions);
   pl->partitions = NULL;
   pl->count = 0;
@@ -74,9 +82,8 @@ get_mount_point(char **ret_path)
 }
 
 static int
-find_linux_partitions(const char *device, char ***partitions, int *count)
+find_linux_partitions(const char *device, partition_list_t *pl_out)
 {
-  _cleanup_(free_partition_list) partition_list_t pl = {0};
   _cleanup_(blkid_free_probep) blkid_probe pr = NULL;
   blkid_partlist ls;
   int nparts, i;
@@ -85,15 +92,15 @@ find_linux_partitions(const char *device, char ***partitions, int *count)
 
   MSG_FUNC("device='%s'", device);
 
-  pl.partitions = calloc(max_parts, sizeof(char *));
-  if (!pl.partitions)
+  partition_info_t *partitions = calloc(max_parts, sizeof(partition_info_t));
+  if (!partitions)
     return -ENOMEM;
 
   pr = blkid_new_probe_from_filename(device);
   if (!pr)
     {
       MSG_WARN("Failed to create blkid probe for '%s'", device);
-      free(pl.partitions);
+      free(partitions);
       return -ENOENT;
     }
 
@@ -104,8 +111,8 @@ find_linux_partitions(const char *device, char ***partitions, int *count)
   if (r != 0)
     {
       MSG_DEBUG("No partition table found on '%s'", device);
-      *partitions = pl.partitions;
-      *count = 0;
+      pl_out->partitions = partitions;
+      pl_out->count = 0;
       return 0;
     }
 
@@ -113,14 +120,15 @@ find_linux_partitions(const char *device, char ***partitions, int *count)
   if (!ls)
     {
       MSG_DEBUG("Failed to get partition list for '%s'", device);
-      *partitions = pl.partitions;
-      *count = 0;
+      pl_out->partitions = partitions;
+      pl_out->count = 0;
       return 0;
     }
 
   nparts = blkid_partlist_numof_partitions(ls);
   MSG_DEBUG("Found %d partition(s) on %s", nparts, device);
 
+  int count = 0;
   for (i = 0; i < nparts; i++)
     {
       blkid_partition par = blkid_partlist_get_partition(ls, i);
@@ -158,28 +166,45 @@ find_linux_partitions(const char *device, char ***partitions, int *count)
               if (streq(type, "ext4") || streq(type, "ext3") || streq(type, "ext2") ||
                   streq(type, "xfs") || streq(type, "btrfs"))
                 {
-                  if (pl.count >= max_parts)
+                  if (count >= max_parts)
                     {
                       max_parts *= 2;
-                      char **new_parts = realloc(pl.partitions, max_parts * sizeof(char *));
+                      partition_info_t *new_parts = realloc(partitions, max_parts * sizeof(partition_info_t));
                       if (!new_parts)
-			return -ENOMEM;
-                      pl.partitions = new_parts;
+                        {
+                          for (int j = 0; j < count; j++)
+                            {
+                              free(partitions[j].path);
+                              free(partitions[j].fstype);
+                            }
+                          free(partitions);
+                          return -ENOMEM;
+                        }
+                      partitions = new_parts;
                     }
-                  pl.partitions[pl.count] = strdup(partname);
-                  if (!pl.partitions[pl.count])
-		    return -ENOMEM;
-                  MSG_DEBUG("Found Linux partition: %s (type=%s)", pl.partitions[pl.count], type);
-                  pl.count++;
+                  partitions[count].path = strdup(partname);
+                  partitions[count].fstype = strdup(type);
+                  if (!partitions[count].path || !partitions[count].fstype)
+                    {
+                      for (int j = 0; j <= count; j++)
+                        {
+                          free(partitions[j].path);
+                          free(partitions[j].fstype);
+                        }
+                      free(partitions);
+                      return -ENOMEM;
+                    }
+                  MSG_DEBUG("Found Linux partition: %s (type=%s)", partitions[count].path, type);
+                  count++;
                 }
             }
         }
     }
 
-  *partitions = pl.partitions;
-  *count = pl.count;
+  pl_out->partitions = partitions;
+  pl_out->count = count;
 
-  MSG_INFO("Found %d Linux partition(s) on %s", pl.count, device);
+  MSG_INFO("Found %d Linux partition(s) on %s", count, device);
   return 0;
 }
 
@@ -275,19 +300,19 @@ copy_ssh_hostkeys(const char *src_dir, const char *dst_dir)
 }
 
 static int
-try_backup_from_partition(const char *partition, const char *backup_dir)
+try_backup_from_partition(const char *partition, const char *fstype, const char *backup_dir)
 {
   _cleanup_free_ char *ssh_dir = NULL;
   _cleanup_free_ char *mount_point = NULL;
   int r;
 
-  MSG_FUNC("partition='%s', backup_dir='%s'", partition, backup_dir);
+  MSG_FUNC("partition='%s', fstype='%s', backup_dir='%s'", partition, fstype, backup_dir);
 
   r = get_mount_point(&mount_point);
   if (r < 0)
     return r;
 
-  r = mount(partition, mount_point, NULL, MS_RDONLY, NULL);
+  r = mount(partition, mount_point, fstype, MS_RDONLY, NULL);
   if (r < 0)
     {
       r = errno;
@@ -337,7 +362,7 @@ rdii_ssh_hostkey_backup(const char *device, const char *backup_dir)
         }
     }
 
-  r = find_linux_partitions(device, &pl.partitions, &pl.count);
+  r = find_linux_partitions(device, &pl);
   if (r < 0)
     return r;
 
@@ -349,7 +374,7 @@ rdii_ssh_hostkey_backup(const char *device, const char *backup_dir)
 
   for (int i = 0; i < pl.count; i++)
     {
-      r = try_backup_from_partition(pl.partitions[i], backup_dir);
+      r = try_backup_from_partition(pl.partitions[i].path, pl.partitions[i].fstype, backup_dir);
       if (r > 0)
         return r;
     }
@@ -359,7 +384,7 @@ rdii_ssh_hostkey_backup(const char *device, const char *backup_dir)
 }
 
 static int
-try_restore_to_partition(const char *partition, const char *backup_dir)
+try_restore_to_partition(const char *partition, const char *fstype, const char *backup_dir)
 {
   _cleanup_free_ char *ssh_dir = NULL;
   _cleanup_free_ char *mount_point = NULL;
@@ -368,13 +393,13 @@ try_restore_to_partition(const char *partition, const char *backup_dir)
   struct dirent *entry;
   bool has_hostkeys = false;
 
-  MSG_FUNC("partition='%s', backup_dir='%s'", partition, backup_dir);
+  MSG_FUNC("partition='%s', fstype='%s', backup_dir='%s'", partition, fstype, backup_dir);
 
   r = get_mount_point(&mount_point);
   if (r < 0)
     return r;
 
-  r = mount(partition, mount_point, NULL, 0, NULL);
+  r = mount(partition, mount_point, fstype, 0, NULL);
   if (r < 0)
     {
       r = errno;
@@ -466,7 +491,7 @@ rdii_ssh_hostkey_restore(const char *device, const char *backup_dir)
       return 0;
     }
 
-  r = find_linux_partitions(device, &pl.partitions, &pl.count);
+  r = find_linux_partitions(device, &pl);
   if (r < 0)
     return r;
 
@@ -478,7 +503,7 @@ rdii_ssh_hostkey_restore(const char *device, const char *backup_dir)
 
   for (int i = 0; i < pl.count; i++)
     {
-      r = try_restore_to_partition(pl.partitions[i], backup_dir);
+      r = try_restore_to_partition(pl.partitions[i].path, pl.partitions[i].fstype, backup_dir);
       if (r > 0)
         return r;
     }
