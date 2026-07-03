@@ -42,6 +42,7 @@ free_partition_list(partition_list_t *pl)
   pl->count = 0;
 }
 
+#if 0
 static inline void
 free_partition_listp(partition_list_t **pl)
 {
@@ -49,6 +50,7 @@ free_partition_listp(partition_list_t **pl)
     free_partition_list(*pl);
   *pl = mfree(*pl);
 }
+#endif
 
 static inline void
 blkid_free_probep(blkid_probe *pr)
