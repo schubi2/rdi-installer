@@ -2,6 +2,7 @@
 
 #include "config.h"
 
+#include <getopt.h>
 #include <string.h>
 #include <libeconf.h>
 
@@ -102,8 +103,32 @@ rm_rf_and_freep(char **p)
     *p = rm_rf_and_free(*p);
 }
 
+static void
+print_usage(FILE *stream)
+{
+  fprintf(stream, "Usage: rdi-installer [options]\n");
+}
+
+static void
+print_help(void)
+{
+  fprintf(stdout, "rdi-installer - raw disk image installer\n\n");
+
+  print_usage(stdout);
+
+  fputs("  -c, --config <file>  Specify a different config file\n", stdout);
+  fputs("  -h, --help           Give this help list\n", stdout);
+  fputs("  -v, --version        Print program version\n", stdout);
+}
+
+static void
+print_error(void)
+{
+  fprintf(stderr, "Try `rdi-installer --help' for more information.\n");
+}
+
 int
-main(void)
+main(int argc, char **argv)
 {
   _cleanup_(rm_rf_and_freep) char *rdii_tmp_dir_cleanup = NULL;
   _cleanup_free_ char *image = NULL;
@@ -114,18 +139,62 @@ main(void)
   int r;
   econf_err conf_err;
 
-  init_ncurses();
-
   if (getuid())
     rdii_log = "rdii.log";
   r = log_init(NO_CONSOLE_LOG, rdii_log);
   if (r < 0)
     {
-      show_error_popup("Cannot initialize log file:", rdii_log, strerror(-r));
+      fprintf(stderr, "Cannot initialize log file (%s): %s\n",
+	      rdii_log, strerror(-r));
       return -r;
     }
 
   MSG_INFO("rdi-installer started");
+
+  while (1)
+    {
+      int c;
+      int option_index = 0;
+      static struct option long_options[] =
+        {
+          {"config",    required_argument, NULL, 'c' },
+	  {"help",      no_argument,       NULL, 'h' },
+	  {"version",   no_argument,       NULL, 'v' },
+	  {NULL,        0,                 NULL, '\0'}
+        };
+
+      c = getopt_long(argc, argv, "c:hv",
+                      long_options, &option_index);
+      if (c == (-1))
+        break;
+      switch (c)
+        {
+	case 'c':
+          rdii_config = optarg;
+          break;
+	case 'h':
+          print_help();
+          return 0;
+        case 'v':
+          printf("rdi-installer (%s) %s\n", PACKAGE, VERSION);
+          return 0;
+        default:
+          print_error();
+          return 1;
+        }
+    }
+
+  argc -= optind;
+  argv += optind;
+
+  if (argc > 0)
+    {
+      fprintf(stderr, "rdi-installer: Too many arguments.\n");
+      print_error();
+      return EINVAL;
+    }
+
+  init_ncurses();
 
   // XXX keymap ignored
   conf_err = read_config(rdii_config, &device, &image, &image1, &image2, NULL, &preserve_ssh_hostkey);
