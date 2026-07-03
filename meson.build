@@ -121,7 +121,8 @@ executable('rdii-helper',
 rdi_installer_c = ['src/rdi-installer.c',
                    'src/rdii-menu.c', 'src/rdii-menu-keymap.c',
                    'src/rdii-menu-disk.c', 'src/rdii-menu-image.c',
-                   'src/rdii-menu-sysinfo.c', 'src/rdii-menu-installation.c']
+                   'src/rdii-menu-sysinfo.c', 'src/rdii-menu-installation.c',
+                   'src/rdii-menu-mdraid.c']
 executable('rdi-installer',
            rdi_installer_c,
            include_directories : inc,

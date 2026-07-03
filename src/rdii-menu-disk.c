@@ -63,11 +63,6 @@ is_device_mounted(const char *device)
   return mounted;
 }
 
-
-static inline const char *strunknown(const char *s) {
-        return s ?: "Unknown";
-}
-
 int
 select_target_device(uint64_t minsize, char **device)
 {

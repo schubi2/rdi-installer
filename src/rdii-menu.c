@@ -415,17 +415,20 @@ show_post_menu(void)
 }
 
 static int
-show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_hostkey)
+show_main_menu(const char *def_image, const char *def_device, const char *def_mdraid, bool preserve_ssh_hostkey)
 {
   uint64_t minsize = 10 * 1000ULL * 1000 * 1000; // 10G min disk size
   _cleanup_free_ char *image_entry = NULL;
   _cleanup_free_ char *target_entry = NULL;
+  _cleanup_free_ char *mdraid_entry = NULL;
   _cleanup_free_ char *keymap_entry = NULL;
   _cleanup_free_ char *image = NULL;
-  _cleanup_free_ char *device = NULL;
+  _cleanup_free_ char *device = NULL; // standard device or first device of mdraid
+  _cleanup_free_ char *mdraid = NULL; // second device for mdraid
   const char *options[] = {
     "Select Image",
     "Select Target",
+    "Enable MD Devices (Raid1)",
     "Select Keymap",
     "System Information",
     "Start Installation",
@@ -449,6 +452,12 @@ show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_
       if (!device)
 	return -ENOMEM;
     }
+  if (def_mdraid)
+    {
+      mdraid = strdup(def_mdraid);
+      if (!mdraid)
+	return -ENOMEM;
+    }
 
   // Adjust menu entries
   if (!isempty(image))
@@ -467,7 +476,7 @@ show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_
     }
 
   if (!isempty(image) && !isempty(device))
-    selected = 4;
+    selected = 5;
 
   while (1)
     {
@@ -503,7 +512,22 @@ show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_
 	      }
 	  }
 	  break;
-	case 2: // Select Keymap
+	case 2: // Enable mdraid
+	  {
+	    if (select_mdraid_devices(minsize, &device, &mdraid) == 0)
+	      {
+		if (!isempty(device) && !isempty(mdraid))
+		  {
+		    mdraid_entry = mfree(mdraid_entry);
+		    if (asprintf(&mdraid_entry, "Enable MD Devices (Raid1) (%s, %s)",
+				 device, mdraid) < 0)
+		      return -ENOMEM;
+		    options[3] = mdraid_entry;
+		  }
+	      }
+	  }
+	  break;
+	case 3: // Select Keymap
 	  {
 	    _cleanup_free_ char *keymap = NULL;
 	    if (select_keymap(&keymap) == 0)
@@ -516,16 +540,16 @@ show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_
 	      }
 	  }
 	  break;
-	case 3: // System Information
+	case 4: // System Information
 	  show_sysinfo();
 	  break;
-	case 4: // Start Installation
+	case 5: // Start Installation
 	  if (isempty(image) || isempty(device))
 	    show_error_popup("Installation image and target device are required!",
 			     NULL, NULL);
 	  else
 	    {
-	      int r = run_installation(image, device, preserve_ssh_hostkey);
+	      int r = run_installation(image, device, mdraid, preserve_ssh_hostkey);
 	      if (r == 0)
 		{
 		  r = show_post_menu();
@@ -534,16 +558,16 @@ show_main_menu(const char *def_image, const char *def_device, bool preserve_ssh_
 		}
 	    }
 	  break;
-	case 5: // Refresh Screen
+	case 6: // Refresh Screen
 	  // loop will redraw screen
 	  break;
-	case 6: // Abort
+	case 7: // Abort
 	  return 0;
 	  break;
-	case 7: // Reboot
+	case 8: // Reboot
 	  return exec_cmd("reboot", "reboot");
 	  break;
-	case 8: // PowerOff
+	case 9: // PowerOff
 	  return exec_cmd("poweroff", "poweroff");
 	  break;
 	case -ECANCELED:
@@ -598,8 +622,8 @@ init_ncurses(void)
 }
 
 int
-rdii_menu(const char *image0, const char *image1,
-	  const char *image2, const char *device, bool preserve_ssh_hostkey)
+rdii_menu(const char *image0, const char *image1, const char *image2,
+	  const char *device, const char *mdraid, bool preserve_ssh_hostkey)
 {
   const char *image = NULL;
   int r;
@@ -627,7 +651,7 @@ rdii_menu(const char *image0, const char *image1,
 	}
     }
 
-  r = show_main_menu(image, device, preserve_ssh_hostkey);
+  r = show_main_menu(image, device, mdraid, preserve_ssh_hostkey);
   endwin();
 
   return r;

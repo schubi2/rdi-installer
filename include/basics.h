@@ -90,6 +90,10 @@ static inline const char *strbool(bool b) {
        return b ? "true" : "false";
 }
 
+static inline const char *strunknown(const char *s) {
+        return s ?: "Unknown";
+}
+
 extern char *startswith(const char *s, const char *prefix) _pure_;
 extern char *endswith(const char *s, const char *suffix) _pure_;
 

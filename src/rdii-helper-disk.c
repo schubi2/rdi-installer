@@ -50,10 +50,6 @@ parse_size(const char *str, uint64_t *res)
   return 0;
 }
 
-static inline const char *strunknown(const char *s) {
-        return s ?: "Unknown";
-}
-
 int
 main_disk(int argc, char **argv)
 {

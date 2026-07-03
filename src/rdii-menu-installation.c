@@ -509,14 +509,16 @@ sha256_eq(const char *path1, const char *path2)
 }
 
 int
-run_installation(const char *url, const char *device, bool preserve_ssh_hostkey)
+run_installation(const char *url, const char *device, const char *mdraid,
+		 bool preserve_ssh_hostkey)
 {
   _cleanup_free_ char *d_sha256_fn = NULL;
   _cleanup_free_ char *ssh_backup_dir = NULL;
   bool is_neturl = startswith(url, "https://") || startswith(url, "http://");
   int r;
 
-  MSG_FUNC("url='%s', device='%s', preserve_ssh_hostkey=%s", strna(url), strna(device),
+  MSG_FUNC("url='%s', device='%s', mdraid='%s', preserve_ssh_hostkey=%s",
+	   strna(url), strna(device), strna(mdraid),
            strbool(preserve_ssh_hostkey));
 
   if (is_device_mounted(device))
@@ -532,6 +534,8 @@ run_installation(const char *url, const char *device, bool preserve_ssh_hostkey)
       if (r == 0)
 	return -EINTR;
     }
+
+  // XXX mdraid
 
   print_global_header_footer(NULL);
   move(2,0);

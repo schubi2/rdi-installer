@@ -18,12 +18,13 @@ const char *rdii_tmp_dir = NULL;
 const char *rdii_log = "/var/log/rdi-installer.log";
 
 static econf_err
-read_config(const char *config, char **ret_device,
+read_config(const char *config, char **ret_device, char **ret_mdraid,
 	    char **ret_url, char **ret_url1, char **ret_url2,
 	    char **ret_keymap, bool *ret_preserve_ssh_hostkey)
 {
   _cleanup_(econf_freeFilep) econf_file *key_file = NULL;
   _cleanup_free_ char *device = NULL;
+  _cleanup_free_ char *mdraid = NULL;
   _cleanup_free_ char *url = NULL;
   _cleanup_free_ char *url1 = NULL;
   _cleanup_free_ char *url2 = NULL;
@@ -44,6 +45,9 @@ read_config(const char *config, char **ret_device,
     return error;
 
   error = econf_getStringValue(key_file, NULL, "rdii.device", &device);
+  if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+    return error;
+  error = econf_getStringValue(key_file, NULL, "rdii.mdraid", &mdraid);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
     return error;
 
@@ -71,6 +75,8 @@ read_config(const char *config, char **ret_device,
 
   if (ret_device)
     *ret_device = TAKE_PTR(device);
+  if (ret_mdraid)
+    *ret_mdraid = TAKE_PTR(mdraid);
   if (ret_url)
     *ret_url = TAKE_PTR(url);
   if (ret_url1)
@@ -135,6 +141,7 @@ main(int argc, char **argv)
   _cleanup_free_ char *image1 = NULL;
   _cleanup_free_ char *image2 = NULL;
   _cleanup_free_ char *device = NULL;
+  _cleanup_free_ char *mdraid = NULL;
   bool preserve_ssh_hostkey = false;
   int r;
   econf_err conf_err;
@@ -197,7 +204,7 @@ main(int argc, char **argv)
   init_ncurses();
 
   // XXX keymap ignored
-  conf_err = read_config(rdii_config, &device, &image, &image1, &image2, NULL, &preserve_ssh_hostkey);
+  conf_err = read_config(rdii_config, &device, &mdraid, &image, &image1, &image2, NULL, &preserve_ssh_hostkey);
   if (conf_err != ECONF_SUCCESS)
     {
       show_error_popup("Failed to read config file:",
@@ -212,10 +219,11 @@ main(int argc, char **argv)
 		       tmpdir_template, strerror(-r));
       return -r;
     }
+
   // we cannot make rdii_tmp_dir_cleanup global because of _cleanup_
   rdii_tmp_dir = rdii_tmp_dir_cleanup;
 
-  r = rdii_menu(image, image1, image2, device, preserve_ssh_hostkey);
+  r = rdii_menu(image, image1, image2, device, mdraid, preserve_ssh_hostkey);
 
   MSG_INFO("rdi-installer stopped (retval=%i)", r);
 
