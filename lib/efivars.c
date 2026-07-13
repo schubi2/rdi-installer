@@ -41,7 +41,7 @@ bool _efivars_debug = false;
 #define DT_ACPI           0x02
 #define DT_MESSAGING      0x03
 #define DT_MEDIA          0x04
-#define DT_BIOS_BOOT      0x05 // XXX not implemented
+#define DT_BIOS_BOOT      0x05
 #define DT_END            0x7f
 
 /* Device Path SubTypes */
@@ -127,6 +127,12 @@ utf16_to_utf8(const char *data, size_t len, char **ret)
   *ret = TAKE_PTR(utf8);
 
   return 0;
+}
+
+static void
+log_ipv4(const char* label, const uint8_t *ip)
+{
+  MSG_EFIVARS("%s: %d.%d.%d.%d", label, ip[0], ip[1], ip[2], ip[3]);
 }
 
 /* Check if the file is a regular file. */
@@ -390,13 +396,26 @@ parse_device_path(char *data, size_t limit, efivars_t **res)
 	      }
 	      pxe_boot = true;
 	      break;
-	    case DST_MSG_IPV4: // XXX print all fields
+	    case DST_MSG_IPV4:
 	      {
 		ipv4_device_path_t *ipv4 = (ipv4_device_path_t *)(data + offset + 4);
 		if (_efivars_debug)
-                  MSG_EFIVARS("Remote IP: %d.%d.%d.%d",
-			      ipv4->RemoteIp[0], ipv4->RemoteIp[1],
-			      ipv4->RemoteIp[2], ipv4->RemoteIp[3]);
+		  {
+                    MSG_EFIVARS("=== IPv4 Device Path Fields ===");
+		    log_ipv4("Local IP Addr", ipv4->LocalIp);
+		    log_ipv4("Remote IP Addr", ipv4->RemoteIp);
+		    MSG_EFIVARS("Local Port:       %u", ipv4->LocalPort);
+		    MSG_EFIVARS("Remote Port:      %u", ipv4->RemotePort);
+		    // Network Protocol (Typically 0x0006 for TCP or 0x0011 for UDP)
+		    MSG_EFIVARS("Protocol:         0x%04X (%s)", ipv4->Protocol,
+				(ipv4->Protocol == 0x0006) ? "TCP" : (ipv4->Protocol == 0x0011) ? "UDP" : "Other");
+		    // IP Assignment Type
+		    MSG_EFIVARS("IP Assignment:    %s", ipv4->StaticIpAddress ? "Static" : "DHCP / Dynamic");
+		    // Gateway and Subnet Mask
+		    log_ipv4("Gateway IP", ipv4->GatewayIp);
+		    log_ipv4("Subnet Mask", ipv4->SubnetMask);
+		    MSG_EFIVARS("===============================\n");
+		  }
 		if (!ipv4->RemoteIp[0] && !ipv4->RemoteIp[1] &&
 		    !ipv4->RemoteIp[2] && !ipv4->RemoteIp[3])
 		  pxe_boot = true; // IP 0.0.0.0 normally means PXE boot
@@ -410,7 +429,7 @@ parse_device_path(char *data, size_t limit, efivars_t **res)
 	}
       else if (head->type == DT_HARDWARE)
 	{
-	  if (head->sub_type == 0x01) // XXX -> 0x01 should be a define
+	  if (head->sub_type == DST_HARD_DRIVE)
 	    {
 	      pci_device_path_t *pci = (pci_device_path_t *)(data + offset + 4);
 	      if (_efivars_debug)
@@ -428,6 +447,11 @@ parse_device_path(char *data, size_t limit, efivars_t **res)
 	{
 	  if (_efivars_debug)
             MSG_EFIVARS("Unsupported: DT_ACPI, subtype: %02X", head->sub_type);
+	}
+      else if (head->type == DT_BIOS_BOOT)
+	{
+	  if (_efivars_debug)
+            MSG_EFIVARS("Unsupported: DT_BIOS_BOOT, subtype: %02X", head->sub_type);
 	}
       else if (_efivars_debug)
         MSG_EFIVARS("Unknown device path type: %02X, subtype: %02X",
