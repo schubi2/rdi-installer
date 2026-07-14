@@ -1,0 +1,12 @@
+ssh=1
+ssh.password=123456789
+vlan=vlan99:eth0
+vlan=vlan98:eth0
+ip=vlan98:any
+ip=192.168.0.10::192.168.0.1:255.255.255.0::vlan99:off:10.10.10.10:10.10.10.11
+# 2. Gateway (10.0.2.3) for network 10.1.2.3/16
+rd.route=10.1.2.3/16:10.0.2.3:vlan99
+# 3. Gateway (192.168.0.254) for network 172.16.0.0/12
+rd.route=172.16.0.0/12:192.168.0.254:vlan99
+# 4. Gateway (192.168.0.5) for a single server (142.250.185.74/32)
+rd.route=142.250.185.74/32:192.168.0.5:vlan99
