@@ -166,7 +166,9 @@ parse_ip_arg(int nr, char *arg, ip_t *cfg)
 	  r = extract_ip_addr(&arg, true, &token);
 	  if (r < 0)
 	    return return_syntax_error(nr, orig, r);
-	  cfg->gateway = token;
+          r = append_route_settings(token, NULL, cfg);
+          if (r < 0)
+            return r;
 
 	  r = extract_word(&arg, true, &token);
 	  if (r < 0)
@@ -374,12 +376,14 @@ parse_rd_route_arg(int nr, char *arg, ip_t *cfg)
 	return return_syntax_error(nr, arg, r);
       token[strlen(token)-1] = '\0';
     }
-  cfg->destination=token;
+  char *destination=token;
 
   r = extract_ip_addr(&arg, false, &token);
   if (r < 0)
     return return_syntax_error(nr, orig, r);
-  cfg->gateway = token;
+  r = append_route_settings(token, destination, cfg);
+  if (r < 0)
+    return r;
 
   if (!isempty(arg))
     { // interface is optional

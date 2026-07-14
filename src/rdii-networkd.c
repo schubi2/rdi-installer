@@ -29,6 +29,7 @@
 #define NETDEV_PREFIX "62-rdii"
 
 #define MAX_INTERFACES 10
+
 static ip_t configs[MAX_INTERFACES] = {0};
 static int used_configs = 0;
 
@@ -89,23 +90,16 @@ dup_config(ip_t *cfg, int slot)
     configs[slot].client_ip = cfg->client_ip;
   if (!isempty(cfg->peer_ip))
     configs[slot].peer_ip = cfg->peer_ip;
-  if (!isempty(cfg->gateway))
+  if (cfg->gateways_count > 0)
     {
-      // XXX hack for rd.route=<destination>:<gateway>,
-      // ip= has no destination.
-      if (configs[slot].gateway)
+      for (int i=0; i<cfg->gateways_count; i++)
 	{
-	  if (configs[slot].gateway1)
-	    {
-	      MSG_ERROR("Too many gateways specified!");
-	      return -ENOMEM;
-	    }
-	  configs[slot].gateway1 = configs[slot].gateway;
+		int r = append_route_settings(cfg->gateways[i], cfg->destinations[i], &(configs[slot]));
+	  if (r < 0)
+            return r;
 	}
-      configs[slot].gateway = cfg->gateway;
     }
-  if (!isempty(cfg->destination))
-    configs[slot].destination = cfg->destination;
+
   if (cfg->netmask)
     configs[slot].netmask = cfg->netmask;
   if (!isempty(cfg->hostname))
@@ -298,19 +292,13 @@ write_network_config(const char *output_dir, int line_num, ip_t *cfg)
         fprintf(fp, "Peer=%s\n", cfg->peer_ip);
     }
 
-  if (!isempty(cfg->gateway) || !isempty(cfg->destination))
+  for (int i=cfg->gateways_count-1; i>=0; i--)
     {
       fputs("\n[Route]\n", fp);
-      if (!isempty(cfg->destination))
-        fprintf(fp, "Destination=%s\n", cfg->destination);
-      if (!isempty(cfg->gateway))
-        fprintf(fp, "Gateway=%s\n", cfg->gateway);
-    }
-
-  if (!isempty(cfg->gateway1))
-    {
-      fputs("\n[Route]\n", fp);
-      fprintf(fp, "Gateway=%s\n", cfg->gateway1);
+      if (!isempty(cfg->destinations[i]))
+        fprintf(fp, "Destination=%s\n", cfg->destinations[i]);
+      if (!isempty(cfg->gateways[i]))
+        fprintf(fp, "Gateway=%s\n", cfg->gateways[i]);
     }
 
   return 0;
@@ -373,6 +361,20 @@ is_duplicate(vlan_t *list, int count, int new_id)
         return true;
 
   return false;
+}
+
+int
+append_route_settings(const char *gateway, const char *destination, ip_t *cfg)
+{
+  if (cfg->gateways_count >= MAX_GATEWAYS)
+    {
+      MSG_ERROR("Too many gateways specified!");
+      return -ENOMEM;
+    }
+  cfg->gateways[cfg->gateways_count] = gateway;
+  cfg->destinations[cfg->gateways_count] = destination;
+  cfg->gateways_count++;
+  return 0;
 }
 
 int
