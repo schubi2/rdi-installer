@@ -24,54 +24,50 @@
 
 extern char **environ;
 
-// XXX Use exec_cmd, add char **error parameter and change to bool return value
-static int
-verify_signature(const char *file, const char *key)
+static bool
+verify_signature(const char *file, char *key, char **error)
 {
-  pid_t pid;
-  int status;
   int r;
 
   MSG_FUNC("file='%s', key='%s'", file, key);
-
-  char *argv[] = {"gpgv", "--keyring", "/etc/systemd/import-pubring.gpg",
-		  (char *)key, (char *)file, NULL};
 
   print_global_header_footer(NULL);
   move(2,2);
   refresh();
 
-  r = posix_spawnp(&pid, "gpgv", NULL, NULL, argv, environ);
-  if (r != 0)
+  r = exec_cmd("gpgv", "gpgv", "--keyring", "/etc/systemd/import-pubring.gpg",
+	       (char *)key, (char *)file, NULL);
+  if (r < 0)
     {
-      MSG_ERROR( "Failed to spawn gpgv: %s", strerror(r));
-      return -r;
+      MSG_ERROR("Failed to run gpgv: %s", strerror(-r));
+      if (error &&
+	  (asprintf(error, "Failed to run gpgv: %s", strerror(-r)) < 0))
+        *error = "Out of memory";
+      return false;
     }
-
-  if (waitpid(pid, &status, 0) == -1)
+  if (r > 0)
     {
-      r = errno;
-      MSG_ERROR( "waitpid failed: %s", strerror(r));
-      return -r;
-    }
-
-  if (WIFEXITED(status))
-    {
-      if (WEXITSTATUS(status)) // Signature doesn't match
-	{
-	  MSG_ERROR("Signature does not match (gpgv failed with %i)",
-		 WEXITSTATUS(status));
-	  keywait(8, 0, NULL, 0);
-	}
+      if (r > 128) // aborted by signal
+        {
+          int sig = r - 128;
+          MSG_ERROR("gpgv got terminated by signal %d (%s)",
+                 sig, strsignal(sig));
+          if (error &&
+              (asprintf(error, "gpgv got terminated by signal %d (%s)",
+			sig, strsignal(sig)) < 0))
+            *error = "Out of memory";
+        }
       else
-	MSG_INFO("Signature matches");
-      return WEXITSTATUS(status);
+	{
+          MSG_ERROR("gpgv failed with exit code %i", r);
+          if (error &&
+              (asprintf(error, "gpgv failed with exit code %i", r) < 0))
+	    *error = "Out of memory";
+	}
+      return false;
     }
-  else
-    {
-      MSG_ERROR("gpgv terminated abnormally");
-      return -1;
-    }
+
+  return true;
 }
 
 // Call sgdisk -e to adjust partition table to real disk size
@@ -582,13 +578,11 @@ run_installation(const char *url, const char *device, const char *mdraid,
 	    }
 	  else
 	    {
-	      r = verify_signature(d_sha256_fn, d_gpgasc);
-	      if (r < 0)
-		{
-                  if (!show_warning_popup ("Cannot verify signature.",
-					   "Continue without signature verification?", NULL))
-		    return r;
-		}
+              char *error_msg = NULL;
+	      if (!verify_signature(d_sha256_fn, d_gpgasc, &error_msg) &&
+		  !show_warning_popup ("Cannot verify signature.", error_msg,
+				       "Continue without signature verification?"))
+		return -1;
 	    }
 	}
     }
@@ -628,13 +622,11 @@ run_installation(const char *url, const char *device, const char *mdraid,
 	    }
 	  else
 	    {
-	      r = verify_signature(sha256_file, gpgasc_file);
-	      if (r < 0)
-		{
-                  if (!show_warning_popup ("Cannot verify signature.",
-					   "Continue without signature verification?", NULL))
-		    return r;
-		}
+              char *error_msg = NULL;
+	      if (!verify_signature(sha256_file, gpgasc_file, &error_msg) &&
+		  !show_warning_popup ("Cannot verify signature.", error_msg,
+				       "Continue without signature verification?"))
+                return -1;
 	    }
 	}
     }
