@@ -25,7 +25,7 @@
 #define CMDLINE_PATH "/proc/cmdline"
 #define RUN_RDII_CONFIG   "/run/rdi-installer/rdii-config"
 
-#define IP_PREFIX   "66-ip" // XXX replace with 66-rdii
+#define IP_PREFIX   "66-rdii"
 #define NETDEV_PREFIX "62-rdii"
 
 #define MAX_INTERFACES 10
