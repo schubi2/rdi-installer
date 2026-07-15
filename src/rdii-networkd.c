@@ -94,7 +94,7 @@ dup_config(ip_t *cfg, int slot)
     {
       for (int i=0; i<cfg->gateways_count; i++)
 	{
-		int r = append_route_settings(cfg->gateways[i], cfg->destinations[i], &(configs[slot]));
+	  int r = append_route_settings(cfg->gateways[i], cfg->destinations[i], &(configs[slot]));
 	  if (r < 0)
             return r;
 	}
@@ -160,12 +160,8 @@ merge_configs(ip_t *cfg)
 	{
 	  if (configs[i].interface && cfg->interface &&
 	      streq(configs[i].interface, cfg->interface))
-	    {
-	      r = dup_config(cfg, i);
-	      if (r < 0)
-		return r;
-	      return 0;
-	    }
+            return dup_config(cfg, i);
+
 	  if (configs[i].interface && !cfg->interface)
 	    {
 	      // existing config contains interface, new one not.
@@ -198,6 +194,7 @@ write_vlan_entry(FILE *fp, int vlanid)
 	fprintf(fp, "VLAN=%s\n", vlans[i].name);
 	return 0;
       }
+  MSG_ERROR("No valid VLAN found.");
   return -ENOKEY;
 }
 
@@ -266,11 +263,23 @@ write_network_config(const char *output_dir, int line_num, ip_t *cfg)
       if (!isempty(cfg->ntp))
         fprintf(fp, "NTP=%s\n", cfg->ntp);
       if (cfg->vlan1)
-	write_vlan_entry(fp, cfg->vlan1); // XXX return value
+        {
+	  int r = write_vlan_entry(fp, cfg->vlan1);
+	  if (r!= 0)
+	    return r;
+	}
       if (cfg->vlan2)
-	write_vlan_entry(fp, cfg->vlan2); // XXX return value
+        {
+	  int r = write_vlan_entry(fp, cfg->vlan2);
+	  if (r!= 0)
+	    return r;
+	}
       if (cfg->vlan3)
-	write_vlan_entry(fp, cfg->vlan3); // XXX return value
+        {
+	  int r = write_vlan_entry(fp, cfg->vlan3);
+	  if (r!= 0)
+	    return r;
+	}
     }
 
   if (!isempty(cfg->hostname) || cfg->use_dns > 0)
@@ -709,6 +718,7 @@ main(int argc, char *argv[])
 	  else if (parse_all)
 	    {
 	      ip_t cfg = {0};
+	      bool merge = true;
 
 	      // this options are normally handled by systemd-network-generator
 	      if (startswith(arg_start, "ip="))
@@ -724,14 +734,18 @@ main(int argc, char *argv[])
 	      else
 		{
 		  MSG_DEBUG("skip: '%s'", arg_start);
-		  r = 255;
+		  merge = false;
 		}
 
 	      if (r < 0)
 		return -r;
 
-	      if (r == 0)
-		merge_configs(&cfg);
+	      if (merge)
+		{
+                  r = merge_configs(&cfg);
+	          if (r < 0)
+		    return -r;
+		}
 	    }
 	  arg_start = cp + 1;
 	}
@@ -743,7 +757,15 @@ main(int argc, char *argv[])
 
   // write networkd config files
   for (int i = 0; i < used_configs; i++)
-    write_network_config(output_dir, i+1, &configs[i]);
+    {
+      r = write_network_config(output_dir, i+1, &configs[i]);
+      if (r < 0)
+	{
+	  MSG_ERROR("Error writing .network files: %s",
+		  strerror(-r));
+	  return -r;
+	}
+    }
 
   if (nr_vlanids > 0)
     {
