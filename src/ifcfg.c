@@ -185,7 +185,7 @@ write_network_file(const char *output_dir, int nr, ip_t *cfg,
   if (r < 0)
     return r;
 
-  r = split_and_write(fp, "Gateway", cfg->gateway);
+  r = split_and_write(fp, "Gateway", cfg->gateways[0]);
   if (r < 0)
     return r;
 
@@ -383,7 +383,9 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
   else
     {
       cfg.client_ip = ip_list;
-      cfg.gateway = gw_list;
+      r = append_route_settings(gw_list, NULL, &cfg);
+      if (r < 0)
+            return r;
       cfg.dns1 = dns_list;
       cfg.domains = domains;
     }
