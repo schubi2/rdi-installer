@@ -191,7 +191,24 @@ get_devices(device_t **ret, int *ret_count)
       uint64_t size = 0;
       if (size_str)
 	{
-	  unsigned long long sectors = strtoull(size_str, NULL, 10); // XXX error checking
+          errno = 0;
+          char *endptr;
+	  unsigned long long sectors = strtoull(size_str, &endptr, 10);
+	  if (size_str == endptr)
+	    {
+              MSG_ERROR("evaluating sectors: No digits were found in the string.");
+	      return 1;
+            }
+          else if (errno == ERANGE && sectors == ULLONG_MAX)
+	    {
+              MSG_ERROR("evaluating sectors: The number is too large and caused an overflow.");
+	      return 1;
+            }
+          else if (errno != 0 && sectors == 0)
+	    {
+              MSG_ERROR("evaluating sectors: A non-specified conversion error occurred.");
+	      return 1;
+            }
 	  size = sectors * 512;
 	}
       double size_gb = size / 1024.0 / 1024.0 / 1024.0;
@@ -229,7 +246,7 @@ get_devices(device_t **ret, int *ret_count)
 
       if (count == 128)
 	{
-	  MSG_ERROR("Error: you have too many disks!");
+	  MSG_ERROR("You have too many disks!");
 	  return -E2BIG;
 	}
     }
