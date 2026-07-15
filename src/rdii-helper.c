@@ -214,7 +214,7 @@ main_set_default_loader_entry(int argc, char **argv)
   if (verbose)
     MSG_INFO("Setting LoaderEntryDefault to '%s'", efi->entry);
 
-  r = exec_cmd("sdbootutil", "sdbotutil", "set-default", efi->entry, NULL);
+  r = exec_cmd("sdbootutil", "sdbootutil", "set-default", efi->entry, NULL);
   if (r < 0)
     {
       MSG_ERROR("Failed to run sdbootutil: %s", strerror(-r));
