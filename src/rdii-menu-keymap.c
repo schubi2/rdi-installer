@@ -8,11 +8,10 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
-#include <spawn.h>
-#include <sys/wait.h>
 #include <libeconf.h>
 
 #include "basics.h"
+#include "exec_cmd.h"
 #include "rdii-menu.h"
 #include "logger.h"
 
@@ -44,46 +43,19 @@ get_vconsole_keymap(char **ret)
   return 0;
 }
 
-extern char **environ;
-
 static int
 set_keymap(const char *keymap)
 {
-  pid_t pid;
-  int status;
   int r;
-
-  char *argv[] = {"loadkeys", (char *)keymap, NULL};
 
   print_global_header_footer(NULL);
   move(2,2);
   refresh();
 
-  r = posix_spawnp(&pid, "loadkeys", NULL, NULL, argv, environ);
+  r = exec_cmd("loadkeys", "loadkeys", keymap, NULL);
   if (r != 0)
-    {
-      MSG_ERROR("Failed to spawn loadkeys: %s", strerror(r));
-      return -r;
-    }
-
-  if (waitpid(pid, &status, 0) == -1)
-    {
-      r = errno;
-      MSG_ERROR("waitpid failed: %s", strerror(r));
-      return -r;
-    }
-
-  if (WIFEXITED(status))
-    {
-      if (WEXITSTATUS(status)) // loadkeys quit with error
-	keywait(8, 0, NULL, 0);
-      return WEXITSTATUS(status);
-    }
-  else
-    {
-      MSG_ERROR("loadkeys terminated abnormally");
-      return -1;
-    }
+    keywait(8, 0, NULL, 0);
+  return r;
 }
 
 // Dynamic list of available keymaps

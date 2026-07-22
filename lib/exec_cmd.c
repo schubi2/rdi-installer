@@ -6,6 +6,9 @@
 #include <stdarg.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#ifdef HAVE_NCURSES
+#include <ncursesw/curses.h>
+#endif
 
 #include "basics.h"
 #include "exec_cmd.h"
@@ -43,15 +46,35 @@ exec_cmd(const char *cmd, ...)
   va_end(args);
 
   pid_t pid;
+#ifdef HAVE_NCURSES
+  reset_shell_mode();
+#endif
   r = posix_spawnp(&pid, cmd, NULL, NULL, argv, environ);
 
   if (r != 0)
-    return -r;
+    {
+#ifdef HAVE_NCURSES
+      reset_prog_mode();
+      clearok(stdscr, TRUE);
+#endif
+      return -r;
+    }
 
   // Wait for the child process to complete
   int wait_status;
   if (waitpid(pid, &wait_status, 0) == -1)
-    return -r;
+    {
+#ifdef HAVE_NCURSES
+      reset_prog_mode();
+      clearok(stdscr, TRUE);
+#endif
+      return -r;
+    }
+
+#ifdef HAVE_NCURSES
+  reset_prog_mode();
+  clearok(stdscr, TRUE);
+#endif
 
   // Evaluate the exit status
   if (WIFEXITED(wait_status))
