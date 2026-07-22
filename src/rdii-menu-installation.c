@@ -504,6 +504,12 @@ sha256_eq(const char *path1, const char *path2)
   return streq(hash1, hash2);
 }
 
+/*
+  Handling of mdraid:
+  - first disk is "device"
+  - second disk is "mdraid"
+  - new device name is "/dev/md0"
+*/
 int
 run_installation(const char *url, const char *device, const char *mdraid,
 		 bool preserve_ssh_hostkey)
@@ -531,12 +537,25 @@ run_installation(const char *url, const char *device, const char *mdraid,
 	return -EINTR;
     }
 
-  // XXX mdraid
+  if (!isempty(mdraid) && is_device_mounted(mdraid))
+    {
+      _cleanup_free_ char *msg = NULL;
+      if (asprintf(&msg, "The device %s contains mounted partitions.",
+		   mdraid) < 0)
+	return -ENOMEM;
+
+      r = show_warning_popup("!!! CRITICAL WARNING: DRIVE IS CURRENTLY MOUNTED !!!",
+			     msg,
+			     "Proceeding may cause data loss or corruption.");
+      if (r == 0)
+	return -EINTR;
+    }
 
   print_global_header_footer(NULL);
   move(2,0);
 
   // assume network url style
+  // download hashes and signatures for verification
   if (is_neturl)
     {
       _cleanup_free_ char *sha256_url = NULL;
@@ -638,8 +657,16 @@ run_installation(const char *url, const char *device, const char *mdraid,
 
   _cleanup_free_ char *device_line = NULL;
 
-  if (asprintf(&device_line, "will be written to %s", device) < 0)
-    return -ENOMEM;
+  if (isempty(mdraid))
+    {
+      if (asprintf(&device_line, "will be written to %s", device) < 0)
+	return -ENOMEM;
+    }
+  else
+    {
+      if (asprintf(&device_line, "will be written to %s and %s", device, mdraid) < 0)
+	return -ENOMEM;
+    }
 
   print_global_header_footer(NULL);
   refresh();
@@ -670,6 +697,25 @@ run_installation(const char *url, const char *device, const char *mdraid,
 	   "%s", start_installation_str);
   move(4,0);
   refresh();
+
+  if (!isempty(mdraid))
+    {
+      // Create /dev/md0
+
+      r = exec_cmd("mdadm", "mdadm", "--create", "--verbose", "/dev/md0",
+		   "--level=1", "--metadata=1.0", "--raid-devices=2",
+		   (char *)device, (char *)mdraid, NULL);
+      if (r < 0)
+	{
+	  show_error_popup("Creating MD Raid failed.",
+			   "Failed to run mdadm:",
+			   strerror(-r));
+	  return r;
+	}
+
+      // set device to /dev/md0
+      device = "/dev/md0";
+    }
 
   if (is_neturl)
     {
