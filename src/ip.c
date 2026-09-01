@@ -100,27 +100,55 @@ extract_ip_addr(char **str, bool required, char **ret)
   return 0;
 }
 
-static int
-extract_word(char **str, bool required, char **ret)
+int
+extract_word(char **str, const char *sep, bool required, char **ret)
 {
   char *token;
 
-  if ((*str)[0] == '[')
+  if (!str || !*str || **str == '\0')
     {
-      if (!strchr(*str, ']'))
-	return -EINVAL;
-      token = strsep(str, "]");
-      (*str)[0]='\0'; // XXX overwrite ":", safety check
-      (*str)++;
-      token[strlen(token)] = ']';
+      if (required) return -EINVAL;
+      *ret = NULL;
+      return 0;
+    }
+
+  /* Handle bracketed substring [ ... ] */
+  if (**str == '[')
+    {
+      char *end = strchr(*str, ']');
+      if (!end)
+        return -EINVAL; /* Unmatched bracket */
+
+      token = *str;
+
+      /* Check if a delimiter immediately follows the closing bracket */
+      char *next = end + 1;
+      if (*next != '\0')
+        {
+          if (strchr(sep, *next) != NULL)
+            {
+              *next = '\0'; /* Terminate string at separator */
+              *str = next + 1;
+            }
+          else
+            {
+              *str = next;
+            }
+        }
+      else
+        {
+          *str = next;
+        }
     }
   else
-    token = strsep(str, ":");
-  if (isempty(token) && required)
+    {
+      token = strsep(str, sep);
+    }
+
+  if ((!token || *token == '\0') && required)
     return -EINVAL;
 
   *ret = token;
-
   return 0;
 }
 
@@ -170,7 +198,7 @@ parse_ip_arg(int nr, char *arg, ip_t *cfg)
           if (r < 0)
             return r;
 
-	  r = extract_word(&arg, true, &token);
+	  r = extract_word(&arg, ":", true, &token);
 	  if (r < 0)
 	    return return_syntax_error(nr, orig, r);
 	  if (strchr(token, '.')) // something like 255.255.0.0
@@ -197,17 +225,17 @@ parse_ip_arg(int nr, char *arg, ip_t *cfg)
 	      cfg->netmask = l;
 	    }
 
-	  r = extract_word(&arg, false, &token);
+	  r = extract_word(&arg, ":", false, &token);
 	  if (r < 0)
 	    return return_syntax_error(nr, orig, r);
 	  cfg->hostname = token;
 
-	  r = extract_word(&arg, true, &token);
+	  r = extract_word(&arg, ":", true, &token);
 	  if (r < 0)
 	    return return_syntax_error(nr, orig, r);
 	  cfg->interface = token;
 
-	  r = extract_word(&arg, false, &token);
+	  r = extract_word(&arg, ":", false, &token);
 	  if (r < 0)
 	    return return_syntax_error(nr, orig, r);
 	  cfg->autoconf = token;
@@ -215,7 +243,7 @@ parse_ip_arg(int nr, char *arg, ip_t *cfg)
 	  // either <mtu>:<macaddr> or <dns1>:<dns2>:<ntp>
 	  if (!isempty(arg))
 	    {
-	      r = extract_word(&arg, false, &token);
+	      r = extract_word(&arg, ":", false, &token);
 	      if (r < 0)
 		return return_syntax_error(nr, orig, r);
 
@@ -258,7 +286,7 @@ parse_ip_arg(int nr, char *arg, ip_t *cfg)
 		    cfg->macaddr = arg; // must be macaddr
 		  else
 		    {
-		      r = extract_word(&arg, false, &token);
+		      r = extract_word(&arg, ":", false, &token);
 		      if (r < 0)
 			return return_syntax_error(nr, orig, r);
 		      cfg->dns2 = token;
@@ -337,7 +365,7 @@ parse_rd_peerdns_arg(int nr, char *arg, ip_t *cfg)
   if (orig == NULL)
     return -ENOMEM;
 
-  r = extract_word(&arg, true, &token);
+  r = extract_word(&arg, ":", true, &token);
   if (r < 0)
     return return_syntax_error(nr, orig, r);
   if (streq(token, "0"))
@@ -365,7 +393,7 @@ parse_rd_route_arg(int nr, char *arg, ip_t *cfg)
   if (orig == NULL)
     return -ENOMEM;
 
-  r = extract_word(&arg, true, &token);
+  r = extract_word(&arg, ":", true, &token);
   if (r < 0)
     return return_syntax_error(nr, arg, r);
 
@@ -387,7 +415,7 @@ parse_rd_route_arg(int nr, char *arg, ip_t *cfg)
 
   if (!isempty(arg))
     { // interface is optional
-      r = extract_word(&arg, true, &token);
+      r = extract_word(&arg, ":", true, &token);
       if (r < 0)
 	return return_syntax_error(nr, orig, r);
       cfg->interface = token;
@@ -411,7 +439,7 @@ parse_vlan_arg(int nr, char *arg, ip_t *cfg)
   if (orig == NULL)
     return -ENOMEM;
 
-  r = extract_word(&arg, true, &token);
+  r = extract_word(&arg, ":", true, &token);
   if (r < 0)
     return return_syntax_error(nr, orig, r);
 
@@ -419,7 +447,7 @@ parse_vlan_arg(int nr, char *arg, ip_t *cfg)
   if (r < 0)
     return return_syntax_error(nr, orig, r);
 
-  r = extract_word(&arg, true, &token);
+  r = extract_word(&arg, ":", true, &token);
   if (r < 0)
     return return_syntax_error(nr, orig, r);
   cfg->interface = token;

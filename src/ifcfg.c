@@ -17,8 +17,10 @@
 #include "ifcfg.h"
 #include "rdii-networkd.h"
 #include "logger.h"
+#include "ip.h"
 
 /* Configuration */
+#define NETDEV_PREFIX  "62-ifcfg"
 #define VLAN_PREFIX    "64-ifcfg-vlan"
 #define IFCFG_PREFIX   "66-ifcfg-dev"
 
@@ -44,29 +46,6 @@ trim_whitespace(char *str)
   return str;
 }
 
-static int
-split_and_write(FILE *fp, const char *key, const char *list)
-{
-  _cleanup_free_ char *values = NULL; // initial pointer to free memory
-  char *token = NULL;
-  char *copy = NULL;
-
-  if (isempty(list))
-    return 0;
-
-  values = strdup(list);
-  if (!values)
-    return -ENOMEM;
-
-  copy = values;
-  token = strsep(&copy, " ");
-  while (token)
-    {
-      fprintf(fp, "%s=%s\n", key, token);
-      token = strsep(&copy, " ");
-    }
-  return 0;
-}
 
 static int
 write_vlan_file(const char *output_dir, const char *interface, int vlanid)
@@ -123,119 +102,35 @@ write_vlan_file(const char *output_dir, const char *interface, int vlanid)
   return 0;
 }
 
-// XXX merge with ip.c
-/* Writes the systemd-networkd .network file */
-static int
-write_network_file(const char *output_dir, int nr, ip_t *cfg,
-		   int rfc2132, int vlanid)
+typedef struct {
+    const char *ifcfg;
+    const char *networkd;
+} dhcp_ifcfg_networkd_t;
+
+static const char*
+map_ifcfg_to_networkd(const char *input)
 {
-  _cleanup_free_ char *filepath = NULL;
-  _cleanup_fclose_ FILE *fp = NULL;
-  int r;
-
-  if (asprintf(&filepath, "%s/%s-%02d.network",
-	       output_dir, IFCFG_PREFIX, nr) < 0)
-    return -ENOMEM;
-
-  MSG_INFO("Creating config: %s for interface '%s'", filepath,
-          cfg->interface);
-
-  fp = fopen(filepath, "w");
-  if (!fp)
+  const dhcp_ifcfg_networkd_t mappings[] =
     {
-      r = -errno;
-      MSG_ERROR("Failed to open network file '%s' for writing: %s",
-             filepath, strerror(-r));
-      return r;
+      { "dhcp",       "yes" },
+      { "dhcp4",      "ipv4" },
+      { "dhcp6",      "ipv6" },
+      { NULL,         NULL }
+    };
+
+  if (isempty(input))
+    return NULL;
+
+  for (int i = 0; mappings[i].ifcfg != NULL; i++)
+    {
+      // Use strcmp for exact match, or strcasecmp for case-insensitive
+      if (streq(input, mappings[i].ifcfg))
+        return mappings[i].networkd;
     }
 
-  /* [Match] Section: */
-  fprintf(fp, "[Match]\n");
-  if (vlanid)
-    {
-      fprintf(fp, "Name=vlan%04d\n", vlanid);
-      fprintf(fp, "Type=vlan\n");
-    }
-  else
-    {
-      /* Heuristic: If the interface contains ':', assume MAC.
-	 Otherwise Name (supports globs like eth*). */
-      if (strchr(cfg->interface, ':'))
-	fprintf(fp, "Name=*\nMACAddress=%s\n", cfg->interface);
-      else
-	fprintf(fp, "Name=%s\n", cfg->interface);
-    }
+  MSG_ERROR("Unknown autoconf option '%s', valid are {dhcp|dhcp4|dhcp6}", input);
 
-  /* [Network] Section: */
-  fprintf(fp, "\n[Network]\n");
-
-  if (!isempty(cfg->autoconf))
-    {
-      if (streq(cfg->autoconf, "dhcp"))
-	fprintf(fp, "DHCP=yes\n");
-      else if (streq(cfg->autoconf, "dhcp4"))
-	fprintf(fp, "DHCP=ipv4\n");
-      else if (streq(cfg->autoconf, "dhcp6"))
-	fprintf(fp, "DHCP=ipv6\n");
-    }
-
-  /* Static IPs (space separated) */
-  r = split_and_write(fp, "Address", cfg->client_ip);
-  if (r < 0)
-    return r;
-
-  r = split_and_write(fp, "Gateway", cfg->gateways[0]);
-  if (r < 0)
-    return r;
-
-  r = split_and_write(fp, "DNS", cfg->dns1);
-  if (r < 0)
-    return r;
-
-  if (!isempty(cfg->domains))
-    fprintf(fp, "Domains=%s\n", cfg->domains);
-
-  /* DHCP Specific Options */
-  if (!isempty(cfg->autoconf))
-    {
-      if (streq(cfg->autoconf, "dhcp") || streq(cfg->autoconf, "dhcp4"))
-	{
-	  fprintf(fp, "\n[DHCPv4]\n");
-	  fprintf(fp, "UseHostname=false\n");
-	  fprintf(fp, "UseDNS=true\n");
-	  fprintf(fp, "UseNTP=true\n");
-
-	  if (rfc2132)
-	    fprintf(fp, "ClientIdentifier=mac\n");
-	}
-      if (streq(cfg->autoconf, "dhcp") || streq(cfg->autoconf, "dhcp6"))
-	{
-	  fprintf(fp, "\n[DHCPv6]\n");
-	  fprintf(fp, "UseHostname=false\n");
-	  fprintf(fp, "UseDNS=true\n");
-	  fprintf(fp, "UseNTP=true\n");
-	}
-    }
-
-  if (vlanid)
-    return write_vlan_file(output_dir, cfg->interface, vlanid);
-
-  return 0;
-}
-
-// XXX merge with ip.c
-static int
-extract_word(char **str, const char *sep, bool required, char **ret)
-{
-  char *token;
-
-  token = strsep(str, sep);
-  if (isempty(token) && required)
-    return -EINVAL;
-
-  *ret = token;
-
-  return 0;
+  return NULL;
 }
 
 /* Parses a single ifcfg string */
@@ -249,7 +144,7 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
   /* vlan */
   int vlanid = 0;
   /* dhcp */
-  int rfc2132 = 0;
+  bool rfc2132 = false;
   int r;
 
   MSG_DEBUG("parse_ifcfg_arg=%d - '%s'", nr, arg);
@@ -286,11 +181,11 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
 	    }
 	  vlanid = l;
 
-	  char *vlan_name;
+          char *vlan_name;
 	  if (asprintf(&vlan_name, "vlan%04d", vlanid) < 0)
 	    return -ENOMEM;
 
-	  r = register_vlan_netdev(vlanid, vlan_name);
+	  r = register_vlan_netdev(vlanid, vlan_name, NETDEV_PREFIX);
 	  if (r < 0)
 	    return r;
 	}
@@ -308,8 +203,9 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
   if (strneq(ip_list, "dhcp", 4))
     {
       cfg.autoconf = ip_list;
+      cfg.autoconf_networkd = map_ifcfg_to_networkd(cfg.autoconf);
       if (!isempty(gw_list) && streq(gw_list, "rfc2132"))
-	rfc2132 = 1;
+        rfc2132 = true;
     }
   else
     {
@@ -321,9 +217,16 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
       cfg.domains = domains;
     }
 
-  r = write_network_file(output_dir, nr, &cfg, rfc2132, vlanid);
-  if (r == -ENOMEM)
+  r = write_network_config(output_dir, IFCFG_PREFIX, nr, &cfg, rfc2132, false, vlanid);
+  if (r < 0)
     return r;
+
+  if (vlanid > 0)
+    {
+      r = write_vlan_file(output_dir, cfg.interface, vlanid);
+      if (r <0)
+        return r;
+    }
 
   return 0;
 }
