@@ -13,7 +13,7 @@ cleanup()
     exit $exit_code
 }
 
-
+trap cleanup EXIT
 
 TEMPDIR=$(mktemp -d)
 
