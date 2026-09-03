@@ -4,3 +4,6 @@ Type=!loopback
 
 [Network]
 DHCP=ipv6
+
+[DHCPv6]
+UseHostname=false

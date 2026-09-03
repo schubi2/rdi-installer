@@ -31,4 +31,6 @@ extern int append_route_settings(const char *gateway, const char *destination, i
 extern int return_syntax_error(int line, const char *value, const int ret);
 extern int get_vlan_id(const char *vlan_name, int *ret);
 extern int register_vlan_netdev(int vlanid, const char *name);
-extern int write_network_config(const char *output_dir, int line_num, ip_t *cfg);
+extern int write_network_config(const char *output_dir, const char *prefix,
+                                int line_num, ip_t *cfg, bool rfc2132,
+                                bool physical_interfaces_only, int vlanid);

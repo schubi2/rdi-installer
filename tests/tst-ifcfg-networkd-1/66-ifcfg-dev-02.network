@@ -3,15 +3,8 @@ Name=*
 MACAddress=00:11:22:33:44:55
 
 [Network]
-DHCP=yes
+DHCP=ipv4
 
 [DHCPv4]
 UseHostname=false
-UseDNS=true
-UseNTP=true
 ClientIdentifier=mac
-
-[DHCPv6]
-UseHostname=false
-UseDNS=true
-UseNTP=true

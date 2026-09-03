@@ -2,12 +2,10 @@
 Name=eth0
 
 [Network]
+Gateway=10.99.10.1
 DHCP=no
 LinkLocalAddressing=no
 IPv6AcceptRA=no
 
 [Address]
 Address=10.99.37.44/16
-
-[Route]
-Gateway=10.99.10.1

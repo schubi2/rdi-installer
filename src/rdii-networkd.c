@@ -56,8 +56,8 @@ map_dracut_to_networkd(const char *input)
     {
       { "none",       "no" },
       { "off",        "no" },
-      { "on",         "yes" },
-      { "any",        "yes" },
+      { "on",         "ipv4" },
+      { "any",        "ipv4" },
       { "dhcp",       "ipv4" },
       { "dhcp6",      "ipv6" },
       { "auto6",      "no" },
@@ -198,117 +198,201 @@ write_vlan_entry(FILE *fp, int vlanid)
   return -ENOKEY;
 }
 
+
+static int
+split_and_write(FILE *fp, const char *key, const char *list)
+{
+  _cleanup_free_ char *values = NULL; // initial pointer to free memory
+  char *token = NULL;
+  char *copy = NULL;
+
+  if (isempty(list))
+    return 0;
+
+  values = strdup(list);
+  if (!values)
+    return -ENOMEM;
+
+  copy = values;
+  token = strsep(&copy, " ");
+  while (token)
+    {
+      fprintf(fp, "%s=%s\n", key, token);
+      token = strsep(&copy, " ");
+    }
+  return 0;
+}
+
+static int
+write_dhcp(FILE *fp, const char *kind, const ip_t *cfg, bool rfc2132)
+{
+  fprintf(fp, "\n[%s]\n"
+          "UseHostname=false\n", kind);
+  if (cfg->hostname)
+    fprintf(fp, "Hostname=%s\n", cfg->hostname);
+  if (cfg->use_dns == 1)
+    fputs("UseDNS=no\n", fp);
+  else if (cfg->use_dns == 2)
+    fputs("UseDNS=yes\n", fp);
+  if (rfc2132)
+    fputs("ClientIdentifier=mac\n", fp);
+  return 0;
+}
+
+/* Writes the systemd-networkd .network file */
 int
-write_network_config(const char *output_dir, int line_num, ip_t *cfg)
+write_network_config(const char *output_dir, const char *prefix, int line_num,
+                     ip_t *cfg, bool rfc2132, bool physical_interfaces_only,  int vlanid)
 {
   _cleanup_free_ char *filepath = NULL;
   _cleanup_fclose_ FILE *fp = NULL;
+  int r;
 
-  if (asprintf(&filepath, "%s/%s-%02d.network",
-               output_dir, IP_PREFIX, line_num) < 0)
+  if (asprintf(&filepath, "%s/%s-%02d.network", output_dir, prefix, line_num) < 0)
     return -ENOMEM;
 
-  MSG_DEBUG("Entry %2d: %s config", line_num, filepath);
+  MSG_DEBUG("Entry %2d: %s config for interface '%s'", line_num, filepath, cfg->interface);
 
   fp = fopen(filepath, "w");
   if (!fp)
     {
-      int r = -errno;
-      MSG_ERROR("Failed to open network file '%s' for writing: %s",
-             filepath, strerror(-r));
-      return r;
+        r = -errno;
+        MSG_ERROR("Failed to open network file '%s' for writing: %s", filepath, strerror(-r));
+        return r;
     }
 
+  /* ------------------------------ [Match] Section ------------------------------ */
   fputs("[Match]\n", fp);
-
-  if (isempty(cfg->interface) || streq(cfg->interface, "*"))
-    fputs("Kind=!*\n"
-          "Type=!loopback\n", fp);
+  if (vlanid > 0)
+    {
+        fprintf(fp, "Name=Vlan%04d\n", vlanid);
+        fputs("Type=vlan\n", fp);
+    }
+  else if (physical_interfaces_only && (isempty(cfg->interface) || streq(cfg->interface, "*")))
+    {
+        fputs("Kind=!*\nType=!loopback\n", fp);
+    }
   else
     {
-      /* Heuristic: If the interface contains ':', assume MAC.
-         Otherwise Name (supports globs like eth*). */
-      if (strchr(cfg->interface, ':'))
-        fprintf(fp, "Name=*\nMACAddress=%s\n", cfg->interface);
-      else
-        fprintf(fp, "Name=%s\n", cfg->interface);
+        /* Heuristic: If the interface contains ':', assume MAC. Otherwise Name (supports globs like eth*). */
+        if (strchr(cfg->interface, ':'))
+            fprintf(fp, "Name=*\nMACAddress=%s\n", cfg->interface);
+        else
+            fprintf(fp, "Name=%s\n", cfg->interface);
     }
+  if (!isempty(cfg->macaddr))
+    fprintf(fp, "MACAddress=%s\n", cfg->macaddr);
 
+  /* ------------------------------ [Link] Section ------------------------------- */
   if (!isempty(cfg->mtu) || !isempty(cfg->macaddr))
     {
       fputs("\n[Link]\n", fp);
-      if (!isempty(cfg->macaddr))
-        fprintf(fp, "MACAddress=%s\n", cfg->macaddr);
       if (!isempty(cfg->mtu))
         fprintf(fp, "MTUBytes=%s\n", cfg->mtu);
     }
 
+  /* ----------------------------- [Network] Section ----------------------------- */
   if (!isempty(cfg->autoconf) || !isempty(cfg->dns1) || !isempty(cfg->dns2) ||
-      !isempty(cfg->ntp) || cfg->vlan1)
+      !isempty(cfg->domains) || !isempty(cfg->ntp) || cfg->vlan1 ||
+      !isempty(cfg->client_ip))
     {
       fputs("\n[Network]\n", fp);
+
+      if (!isempty(cfg->client_ip) && cfg->netmask <= 0)
+        {
+          /* Space-separated multi-IP write fallback */
+          /* Complexer addresses will be written in the [Address] section */
+          r = split_and_write(fp, "Address", cfg->client_ip);
+          if (r < 0) return r;
+        }
+
+      /* Write single-line Gateway entry if defined via split_and_write */
+      if (cfg->gateways_count == 1 && !isempty(cfg->gateways[0]))
+        {
+          r = split_and_write(fp, "Gateway", cfg->gateways[0]);
+          if (r < 0) return r;
+        }
+
       if (!isempty(cfg->autoconf))
         {
           fprintf(fp, "DHCP=%s\n", map_dracut_to_networkd(cfg->autoconf));
           if (streq(cfg->autoconf, "off"))
-            fputs("LinkLocalAddressing=no\n"
-                  "IPv6AcceptRA=no\n", fp);
+            {
+              fputs("LinkLocalAddressing=no\n"
+                    "IPv6AcceptRA=no\n", fp);
+            }
         }
+
+      /* Write DNS settings (supports single values or space-separated lists) */
       if (!isempty(cfg->dns1))
-        fprintf(fp, "DNS=%s\n", cfg->dns1);
+        {
+          r = split_and_write(fp, "DNS", cfg->dns1);
+          if (r < 0) return r;
+        }
       if (!isempty(cfg->dns2))
-        fprintf(fp, "DNS=%s\n", cfg->dns2);
+        {
+          r = split_and_write(fp, "DNS", cfg->dns2);
+          if (r < 0) return r;
+        }
+
       if (!isempty(cfg->domains))
         fprintf(fp, "Domains=%s\n", cfg->domains);
+
       if (!isempty(cfg->ntp))
         fprintf(fp, "NTP=%s\n", cfg->ntp);
-      if (cfg->vlan1)
-        {
-	  int r = write_vlan_entry(fp, cfg->vlan1);
-	  if (r!= 0)
-	    return r;
-	}
-      if (cfg->vlan2)
-        {
-	  int r = write_vlan_entry(fp, cfg->vlan2);
-	  if (r!= 0)
-	    return r;
-	}
-      if (cfg->vlan3)
-        {
-	  int r = write_vlan_entry(fp, cfg->vlan3);
-	  if (r!= 0)
-	    return r;
-	}
+
+      /* VLAN memberships */
+      if (cfg->vlan1 && (r = write_vlan_entry(fp, cfg->vlan1)) != 0)
+        return r;
+      if (cfg->vlan2 && (r = write_vlan_entry(fp, cfg->vlan2)) != 0)
+        return r;
+      if (cfg->vlan3 && (r = write_vlan_entry(fp, cfg->vlan3)) != 0)
+        return r;
     }
 
-  if (!isempty(cfg->hostname) || cfg->use_dns > 0)
-    {
-      fputs("\n[DHCP]\n", fp);
-      if (cfg->hostname)
-        fprintf(fp, "Hostname=%s\n", cfg->hostname);
-      if (cfg->use_dns == 1)
-        fputs("UseDNS=no\n", fp);
-      if (cfg->use_dns == 2)
-        fputs("UseDNS=yes\n", fp);
-    }
+  /* ------------------------------ [DHCP] Section --------------------------------- */
+  /* This section is obsolete and systemd prefers separate sections for ipv4         */
+  /* and ipv6                                                                        */
+  /* Default values are: UseDNS=true, UseNTP=true                                    */
 
-  if (!isempty(cfg->client_ip))
+  if (!isempty(cfg->autoconf))
+   {
+     const char *dhcp = map_dracut_to_networkd(cfg->autoconf);
+
+     /* ----------------------------- [DHCPv4] Section ------------------------------ */
+     if (streq(dhcp, "yes") || streq(dhcp, "ipv4"))
+       write_dhcp(fp, "DHCPv4", cfg, rfc2132);
+
+     /* ----------------------------- [DHCPv6] Section ------------------------------ */
+     if (streq(dhcp, "yes") || streq(dhcp, "ipv6"))
+       write_dhcp(fp, "DHCPv6", cfg, false); /* rfc2132 does not matter here */
+   }
+
+  /* ----------------------------- [Address] Section ----------------------------- */
+  if (!isempty(cfg->client_ip) && cfg->netmask > 0)
     {
       fputs("\n[Address]\n", fp);
+      /* Primary CIDR assignment */
       fprintf(fp, "Address=%s/%d\n", cfg->client_ip, cfg->netmask);
       if (!isempty(cfg->peer_ip))
         fprintf(fp, "Peer=%s\n", cfg->peer_ip);
     }
 
-  for (int i=cfg->gateways_count-1; i>=0; i--)
+  /* ------------------------------ [Route] Section ------------------------------ */
+  if (cfg->gateways_count > 1)
     {
-      fputs("\n[Route]\n", fp);
-      if (!isempty(cfg->destinations[i]))
-        fprintf(fp, "Destination=%s\n", cfg->destinations[i]);
-      if (!isempty(cfg->gateways[i]))
-        fprintf(fp, "Gateway=%s\n", cfg->gateways[i]);
+      for (int i = cfg->gateways_count - 1; i >= 0; i--)
+        {
+          fputs("\n[Route]\n", fp);
+          if (!isempty(cfg->destinations[i]))
+            fprintf(fp, "Destination=%s\n", cfg->destinations[i]);
+          if (!isempty(cfg->gateways[i]))
+            fprintf(fp, "Gateway=%s\n", cfg->gateways[i]);
+        }
     }
+
+  /* Close explicitly before invoking external file writers */
+  fflush(fp);
 
   return 0;
 }
@@ -770,7 +854,7 @@ main(int argc, char *argv[])
   // write networkd config files
   for (int i = 0; i < used_configs; i++)
     {
-      r = write_network_config(output_dir, i+1, &configs[i]);
+      r = write_network_config(output_dir, IP_PREFIX, i+1, &configs[i], false, true, 0);
       if (r < 0)
 	{
 	  MSG_ERROR("Error writing .network files: %s",

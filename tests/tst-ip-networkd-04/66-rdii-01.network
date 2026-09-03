@@ -1,9 +1,12 @@
 [Match]
 Name=eth0
+MACAddress=00:11:22:33:44:55
 
 [Link]
-MACAddress=00:11:22:33:44:55
 MTUBytes=1530
 
 [Network]
 DHCP=ipv4
+
+[DHCPv4]
+UseHostname=false
