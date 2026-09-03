@@ -2,13 +2,14 @@
 Name=eth0
 
 [Network]
-DHCP=yes
+Gateway=192.168.0.1
+DHCP=ipv4
 DNS=10.10.10.10
 DNS=10.10.10.11
 NTP=10.10.10.161
 
+[DHCPv4]
+UseHostname=false
+
 [Address]
 Address=192.168.0.10/24
-
-[Route]
-Gateway=192.168.0.1
