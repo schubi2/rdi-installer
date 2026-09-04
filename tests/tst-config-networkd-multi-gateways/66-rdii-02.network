@@ -3,3 +3,9 @@ Name=vlan98
 
 [Network]
 DHCP=yes
+
+[DHCPv4]
+UseHostname=false
+
+[DHCPv6]
+UseHostname=false
