@@ -44,45 +44,6 @@ static const int vlan_capacity = VLAN_CAPACITY;
 static vlan_t vlans[VLAN_CAPACITY];
 static int nr_vlanids = 0;
 
-typedef struct {
-    const char *dracut;
-    const char *networkd;
-} dhcp_dracut_networkd_t;
-
-static const char*
-map_dracut_to_networkd(const char *input)
-{
-  const dhcp_dracut_networkd_t mappings[] =
-    {
-      { "none",       "no" },
-      { "off",        "no" },
-      { "on",         "yes" },
-      { "any",        "yes" },
-      { "dhcp",       "ipv4" },
-      { "dhcp6",      "ipv6" },
-      { "auto6",      "no" },
-      { "either6",    "ipv6" },
-      { "ibft",       "no" },
-      { "link6",      "no" },
-      { "link-local", "no" },
-      { NULL,         NULL }
-    };
-
-  if (isempty(input))
-    return NULL;
-
-  for (int i = 0; mappings[i].dracut != NULL; i++)
-    {
-      // Use strcmp for exact match, or strcasecmp for case-insensitive
-      if (streq(input, mappings[i].dracut))
-        return mappings[i].networkd;
-    }
-
-  MSG_ERROR("Unknown autoconf option '%s', valid are {dhcp|on|any|dhcp6|auto6|either6|link6|single-dhcp}", input);
-
-  return NULL;
-}
-
 static int
 dup_config(ip_t *cfg, int slot)
 {
@@ -108,6 +69,8 @@ dup_config(ip_t *cfg, int slot)
     configs[slot].interface = cfg->interface;
   if (!isempty(cfg->autoconf))
     configs[slot].autoconf = cfg->autoconf;
+  if (!isempty(cfg->autoconf_networkd))
+    configs[slot].autoconf_networkd = cfg->autoconf_networkd;
   if (cfg->use_dns)
     configs[slot].use_dns = cfg->use_dns;
   if (!isempty(cfg->dns1))
@@ -310,9 +273,9 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
           if (r < 0) return r;
         }
 
-      if (!isempty(cfg->autoconf))
+      if (!isempty(cfg->autoconf_networkd))
         {
-          fprintf(fp, "DHCP=%s\n", map_dracut_to_networkd(cfg->autoconf));
+          fprintf(fp, "DHCP=%s\n", cfg->autoconf_networkd);
           if (streq(cfg->autoconf, "off"))
             {
               fputs("LinkLocalAddressing=no\n"
@@ -359,16 +322,14 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
         fputs("UseDNS=yes\n", fp);
     }
 
-  if (!isempty(cfg->autoconf))
+  if (!isempty(cfg->autoconf_networkd))
    {
-     const char *dhcp = map_dracut_to_networkd(cfg->autoconf);
-
      /* ----------------------------- [DHCPv4] Section ------------------------------ */
-     if (dhcp && (streq(dhcp, "yes") || streq(dhcp, "ipv4")))
+     if (streq(cfg->autoconf_networkd, "yes") || streq(cfg->autoconf_networkd, "ipv4"))
        write_dhcp(fp, "DHCPv4", rfc2132);
 
      /* ----------------------------- [DHCPv6] Section ------------------------------ */
-     if (dhcp && (streq(dhcp, "yes") || streq(dhcp, "ipv6")))
+     if (streq(cfg->autoconf_networkd, "yes") || streq(cfg->autoconf_networkd, "ipv6"))
        write_dhcp(fp, "DHCPv6", false); /* rfc2132 does not matter here */
    }
 

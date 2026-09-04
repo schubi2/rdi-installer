@@ -15,6 +15,7 @@ typedef struct {
   const char *hostname;
   const char *interface;
   const char *autoconf;
+  const char *autoconf_networkd;
   int use_dns; // 0 = unset, 1 = false, 2 = true
   char *dns1;
   char *dns2;
