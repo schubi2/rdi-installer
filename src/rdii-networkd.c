@@ -276,13 +276,13 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
         else
             fprintf(fp, "Name=%s\n", cfg->interface);
     }
-  if (!isempty(cfg->macaddr))
-    fprintf(fp, "MACAddress=%s\n", cfg->macaddr);
 
   /* ------------------------------ [Link] Section ------------------------------- */
   if (!isempty(cfg->mtu) || !isempty(cfg->macaddr))
     {
       fputs("\n[Link]\n", fp);
+      if (!isempty(cfg->macaddr))
+        fprintf(fp, "MACAddress=%s\n", cfg->macaddr);
       if (!isempty(cfg->mtu))
         fprintf(fp, "MTUBytes=%s\n", cfg->mtu);
     }
