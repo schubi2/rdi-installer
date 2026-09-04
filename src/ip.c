@@ -152,6 +152,45 @@ extract_word(char **str, const char *sep, bool required, char **ret)
   return 0;
 }
 
+typedef struct {
+    const char *dracut;
+    const char *networkd;
+} dhcp_dracut_networkd_t;
+
+static const char*
+map_dracut_to_networkd(const char *input)
+{
+  const dhcp_dracut_networkd_t mappings[] =
+    {
+      { "none",       "no" },
+      { "off",        "no" },
+      { "on",         "yes" },
+      { "any",        "yes" },
+      { "dhcp",       "ipv4" },
+      { "dhcp6",      "ipv6" },
+      { "auto6",      "no" },
+      { "either6",    "ipv6" },
+      { "ibft",       "no" },
+      { "link6",      "no" },
+      { "link-local", "no" },
+      { NULL,         NULL }
+    };
+
+  if (isempty(input))
+    return NULL;
+
+  for (int i = 0; mappings[i].dracut != NULL; i++)
+    {
+      // Use strcmp for exact match, or strcasecmp for case-insensitive
+      if (streq(input, mappings[i].dracut))
+        return mappings[i].networkd;
+    }
+
+  MSG_ERROR("Unknown autoconf option '%s', valid are {dhcp|on|any|dhcp6|auto6|either6|link6|single-dhcp}", input);
+
+  return NULL;
+}
+
 int
 parse_ip_arg(int nr, char *arg, ip_t *cfg)
 {
@@ -326,6 +365,8 @@ parse_ip_arg(int nr, char *arg, ip_t *cfg)
 	    }
 	}
     }
+
+  cfg->autoconf_networkd = map_dracut_to_networkd(cfg->autoconf);
 
   return 0;
 }

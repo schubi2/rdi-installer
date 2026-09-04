@@ -2,7 +2,10 @@
 Name=*
 
 [Network]
-DHCP=ipv4
+DHCP=yes
 
 [DHCPv4]
+UseHostname=false
+
+[DHCPv6]
 UseHostname=false
