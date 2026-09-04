@@ -2,15 +2,19 @@
 Name=eth0
 
 [Network]
+Gateway=192.168.0.1
 DHCP=yes
 DNS=10.1.2.3
 
 [DHCP]
 Hostname=hogehoge
 
+[DHCPv4]
+UseHostname=false
+
+[DHCPv6]
+UseHostname=false
+
 [Address]
 Address=192.168.0.10/24
 Peer=192.168.0.2
-
-[Route]
-Gateway=192.168.0.1
