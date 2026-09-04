@@ -56,8 +56,8 @@ map_dracut_to_networkd(const char *input)
     {
       { "none",       "no" },
       { "off",        "no" },
-      { "on",         "ipv4" },
-      { "any",        "ipv4" },
+      { "on",         "yes" },
+      { "any",        "yes" },
       { "dhcp",       "ipv4" },
       { "dhcp6",      "ipv6" },
       { "auto6",      "no" },
@@ -224,18 +224,14 @@ split_and_write(FILE *fp, const char *key, const char *list)
 }
 
 static int
-write_dhcp(FILE *fp, const char *kind, const ip_t *cfg, bool rfc2132)
+write_dhcp(FILE *fp, const char *kind, bool rfc2132)
 {
+  /* Default values are: UseDNS=true, UseNTP=true */
   fprintf(fp, "\n[%s]\n"
           "UseHostname=false\n", kind);
-  if (cfg->hostname)
-    fprintf(fp, "Hostname=%s\n", cfg->hostname);
-  if (cfg->use_dns == 1)
-    fputs("UseDNS=no\n", fp);
-  else if (cfg->use_dns == 2)
-    fputs("UseDNS=yes\n", fp);
   if (rfc2132)
     fputs("ClientIdentifier=mac\n", fp);
+
   return 0;
 }
 
@@ -307,7 +303,8 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
         }
 
       /* Write single-line Gateway entry if defined via split_and_write */
-      if (cfg->gateways_count == 1 && !isempty(cfg->gateways[0]))
+      if (cfg->gateways_count == 1 &&
+          !isempty(cfg->gateways[0]) && isempty(cfg->destinations[0]))
         {
           r = split_and_write(fp, "Gateway", cfg->gateways[0]);
           if (r < 0) return r;
@@ -351,21 +348,28 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
     }
 
   /* ------------------------------ [DHCP] Section --------------------------------- */
-  /* This section is obsolete and systemd prefers separate sections for ipv4         */
-  /* and ipv6                                                                        */
-  /* Default values are: UseDNS=true, UseNTP=true                                    */
+  if (!isempty(cfg->hostname) || cfg->use_dns > 0)
+    {
+      fputs("\n[DHCP]\n", fp);
+      if (cfg->hostname)
+        fprintf(fp, "Hostname=%s\n", cfg->hostname);
+      if (cfg->use_dns == 1)
+        fputs("UseDNS=no\n", fp);
+      else if (cfg->use_dns == 2)
+        fputs("UseDNS=yes\n", fp);
+    }
 
   if (!isempty(cfg->autoconf))
    {
      const char *dhcp = map_dracut_to_networkd(cfg->autoconf);
 
      /* ----------------------------- [DHCPv4] Section ------------------------------ */
-     if (streq(dhcp, "yes") || streq(dhcp, "ipv4"))
-       write_dhcp(fp, "DHCPv4", cfg, rfc2132);
+     if (dhcp && (streq(dhcp, "yes") || streq(dhcp, "ipv4")))
+       write_dhcp(fp, "DHCPv4", rfc2132);
 
      /* ----------------------------- [DHCPv6] Section ------------------------------ */
-     if (streq(dhcp, "yes") || streq(dhcp, "ipv6"))
-       write_dhcp(fp, "DHCPv6", cfg, false); /* rfc2132 does not matter here */
+     if (dhcp && (streq(dhcp, "yes") || streq(dhcp, "ipv6")))
+       write_dhcp(fp, "DHCPv6", false); /* rfc2132 does not matter here */
    }
 
   /* ----------------------------- [Address] Section ----------------------------- */
@@ -379,7 +383,8 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
     }
 
   /* ------------------------------ [Route] Section ------------------------------ */
-  if (cfg->gateways_count > 1)
+  if (cfg->gateways_count > 1 ||
+      (cfg->gateways_count == 1 && !isempty(cfg->destinations[0])))
     {
       for (int i = cfg->gateways_count - 1; i >= 0; i--)
         {

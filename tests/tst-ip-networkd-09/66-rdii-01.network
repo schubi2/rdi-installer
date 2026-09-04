@@ -7,11 +7,16 @@ MTUBytes=1530
 
 [Network]
 Gateway=192.168.0.1
-DHCP=ipv4
+DHCP=yes
+
+[DHCP]
+Hostname=hogehoge
 
 [DHCPv4]
 UseHostname=false
-Hostname=hogehoge
+
+[DHCPv6]
+UseHostname=false
 
 [Address]
 Address=192.168.0.10/24
