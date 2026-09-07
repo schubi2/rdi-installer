@@ -30,7 +30,7 @@ print_help(void)
   fputs("rdii-helper - Helper functions for rdi-installer\n\n", stdout);
   print_usage(stdout);
 
-  fputs("Commands: boot, disk, set-default-loader-entry\n\n", stdout);
+  fputs("Commands: boot, disk, set-default-loader-entry, set-keymap\n\n", stdout);
 
   fputs("Options for boot:\n", stdout);
   fputs("  -d, --debug                    Print debug information\n", stdout);
@@ -50,7 +50,8 @@ print_help(void)
   fputs("\n", stdout);
 
   fputs("Options for set-keymap:\n", stdout);
-  fputs("  -f, --force       Ignore if not run on a virtual console\n", stdout);
+  fputs("  -f, --force         Ignore if not run on a virtual console\n", stdout);
+  fputs("  -t, --title <title> UI headline\n", stdout);
   fputs("\n", stdout);
 
   fputs("Generic options:\n", stdout);
@@ -278,6 +279,7 @@ main_set_keymap(int argc, char **argv)
 {
   int f_flag = 0;
   int r;
+  const char *title = "Select Keymap";
 
   while (1)
     {
@@ -286,12 +288,13 @@ main_set_keymap(int argc, char **argv)
       static struct option long_options[] =
         {
 	  {"force",      no_argument,       NULL, 'f' },
+          {"title",      required_argument, NULL, 't' },
           {"help",       no_argument,       NULL, 'h' },
           {"version",    no_argument,       NULL, 'v' },
           {NULL,         0,                 NULL, '\0'}
         };
 
-      c = getopt_long (argc, argv, "fhv",
+      c = getopt_long (argc, argv, "ft:hv",
                        long_options, &option_index);
       if (c == (-1))
         break;
@@ -301,6 +304,9 @@ main_set_keymap(int argc, char **argv)
 	case 'f':
 	  f_flag = 1;
 	  break;
+        case 't':
+	  title = optarg;
+          break;
 	case 'h':
           print_help();
           return 0;
@@ -326,7 +332,7 @@ main_set_keymap(int argc, char **argv)
   if (f_flag || is_linux_vt())
     {
       init_ncurses(NULL);
-      r = select_keymap(NULL);
+      r = select_keymap(NULL, title);
       endwin();
       if (r < 0)
 	return -r;
