@@ -328,7 +328,7 @@ show_main_menu(const char *def_image, const char *def_device, const char *def_md
 				   NULL, "Continue?"))
 	      {
 		_cleanup_free_ char *keymap = NULL;
-		if (select_keymap(&keymap) == 0)
+		if (select_keymap(&keymap, "Select Keymap") == 0)
 		  {
 		    keymap_entry = mfree(keymap_entry);
 		    if (asprintf(&keymap_entry, "Select Keymap (%s)",
