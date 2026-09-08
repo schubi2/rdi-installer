@@ -160,8 +160,7 @@ show_post_menu(void)
 
   while (1)
     {
-      print_global_header_footer(NULL);
-      selected = choose_entry(4, options, num_options, selected);
+      selected = choose_entry(4, options, num_options, selected, NULL, NULL);
       switch(selected)
 	{
 	case 0: // Reboot
@@ -264,10 +263,11 @@ show_main_menu(const char *def_image, const char *def_device, const char *def_md
 
   while (1)
     {
-      print_global_header_footer(NULL);
-      print_title("Configuration Settings");
-
-      selected = choose_entry(4, options, num_options, selected);
+      const char *help_text = "RDI-installer is a raw disk image installer, whose main "
+        "purpose is to have a comfortable and robust tool to boot on bare metal "
+        "and install a raw disk image on that hardware.";
+      selected = choose_entry(4, options, num_options,
+                              selected, "Raw Disk Installer", help_text);
       switch(selected)
 	{
 	case 0: // Select Image
@@ -376,7 +376,7 @@ show_main_menu(const char *def_image, const char *def_device, const char *def_md
 	      else
 		{
 		  MSG_INFO("Destroying partition table on device '%s' successful.", device);
-		  print_global_header_footer(NULL); // remove warning popup
+		  print_global_header_footer(NULL, SELECTION); // remove warning popup
 		  refresh();
 		  show_info_popup("Destroying partition table was successful", NULL);
 		}
@@ -428,10 +428,8 @@ select_image(const char *image1, const char *image2,
   options[1] = truncate_middle(strna(image2), COLS-8);
   options[2] = truncate_middle(strna(image3), COLS-8);
 
-  print_global_header_footer(NULL);
-  print_title("Select Installation Source");
-
-  return choose_entry(4, (const char **)options, 3, 0);
+  return choose_entry(4, (const char **)options, 3, 0,
+                      "Select Installation Source", NULL);
 }
 
 int

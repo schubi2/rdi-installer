@@ -45,7 +45,7 @@ init_colors(void)
 }
 
 void
-print_global_header_footer(const char *addkeys)
+print_global_header_footer(const char *addkeys, const bool selection)
 {
   MSG_FUNC("addkeys='%s'", strempty(addkeys));
 
@@ -57,7 +57,8 @@ print_global_header_footer(const char *addkeys)
   attroff(COLOR_PAIR(CP_HEADER) | A_BOLD);
 
   // Draw Footer
-  const char *footer_text = "Up/Down: Navigate | Enter: Select | ESC: Abort/Quit";
+  const char *footer_text = (selection ? "Up/Down: Navigate | Enter: Select | ESC: Abort/Quit" :
+                             "ESC: Abort/Quit");
   attron(COLOR_PAIR(CP_FOOTER) | A_REVERSE);
   mvhline(LINES - 1, 0, ' ', COLS);
   if (addkeys)
@@ -309,13 +310,78 @@ show_info_popup(const char *headline, const char *descr)
   refresh();
 }
 
+void show_help_dialog(const char *title, const char *text) {
+    int max_y, max_x;
+    getmaxyx(stdscr, max_y, max_x);
+
+    if (!text)
+      return;
+
+    // Set dialog dimensions (e.g., 60% of terminal screen)
+    int height = max_y * 0.6;
+    int width = max_x * 0.6;
+
+    // Fallback bounds for small terminals
+    if (height < 8) height = 8;
+    if (width < 30) width = 30;
+
+    int start_y = (max_y - height) / 2;
+    int start_x = (max_x - width) / 2;
+
+    // Save previous cursor visibility
+    int prev_cursor = curs_set(0);
+
+    // Create popup window and a sub-window for text padded inside borders
+    WINDOW *help_win = newwin(height, width, start_y, start_x);
+    WINDOW *text_win = derwin(help_win, height - 4, width - 4, 2, 2);
+
+    // Enable keypad for the popup
+    keypad(help_win, TRUE);
+
+    // Draw border and title bar
+    box(help_win, 0, 0);
+    if (title) {
+        mvwprintw(help_win, 0, (width - strlen(title) - 2) / 2, " %s ", title);
+    }
+
+    // Print footer instruction
+    const char *footer = " Press any key to return ";
+    mvwprintw(help_win, height - 1, (width - strlen(footer)) / 2, "%s", footer);
+
+    // Render help text into text sub-window
+    wattron(text_win, A_NORMAL);
+    mvwprintw(text_win, 0, 0, "%s", text);
+    wattroff(text_win, A_NORMAL);
+
+    // Refresh popup windows to bring them to foreground
+    wrefresh(help_win);
+    wrefresh(text_win);
+
+    // Block until user presses any key to dismiss
+    wgetch(help_win);
+
+    // Cleanup popup resources
+    delwin(text_win);
+    delwin(help_win);
+
+    // Restore background screen and cursor
+    curs_set(prev_cursor);
+    touchwin(stdscr);
+    refresh();
+}
+
 int
-choose_entry(int row, const char *options[], int num_options, int start)
+choose_entry(int row, const char *options[], int num_options, int start,
+             const char *title, const char *help_text)
 {
   int selected = start;
 
-  MSG_FUNC("row=%i, options[0]='%s', num_options=%i, start=%i",
-	   row, options[0], num_options, start);
+  MSG_FUNC("row=%i, options[0]='%s', num_options=%i, start=%i, title=%s",
+           row, options[0], num_options, start, title);
+
+  print_global_header_footer((help_text ? "F1: Help" : NULL),
+                             SELECTION);
+  print_title((title ? title : ""));
 
   while (1)
     {
@@ -349,6 +415,8 @@ choose_entry(int row, const char *options[], int num_options, int start)
 	selected = (selected - 1 + num_options) % num_options;
       else if (ch == KEY_DOWN)
 	selected = (selected + 1) % num_options;
+      else if (ch == KEY_F1)
+        show_help_dialog(title, help_text);
       else if (ch == '\n' || ch == KEY_ENTER)
 	{
 	  MSG_INFO("Selected entry %i", selected);

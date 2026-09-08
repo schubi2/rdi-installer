@@ -105,10 +105,8 @@ select_target_device(uint64_t minsize, char **device)
       n++;
     }
 
-  print_global_header_footer(NULL);
-  print_title("Select Target Device");
-
-  selected = choose_entry(4, (const char **)options, n, selected);
+  selected = choose_entry(4, (const char **)options, n, selected,
+                          "Select Target Device", NULL);
   if (selected < 0)
     return selected;
 

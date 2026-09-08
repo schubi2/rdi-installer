@@ -68,10 +68,8 @@ select_mdraid_devices(uint64_t minsize, char **device1, char **device2)
     }
 
   // Select first device
-  print_global_header_footer(NULL);
-  print_title("Select First Disk for mdraid");
-
-  selected1 = choose_entry(4, (const char **)options, n, selected1);
+  selected1 = choose_entry(4, (const char **)options, n, selected1,
+                           "Select First Disk for mdraid", NULL);
   if (selected1 < 0)
     return selected1;
 
@@ -102,10 +100,8 @@ select_mdraid_devices(uint64_t minsize, char **device1, char **device2)
   while (1)
     {
       // Select second device
-      print_global_header_footer(NULL);
-      print_title("Select Second Disk for mdraid");
-
-      selected2 = choose_entry(4, (const char **)options, n, selected2);
+      selected2 = choose_entry(4, (const char **)options, n, selected2,
+                               "Select Second Disk for mdraid", NULL);
       if (selected2 < 0)
 	return selected2;
 

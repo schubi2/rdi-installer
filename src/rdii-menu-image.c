@@ -86,7 +86,7 @@ get_url(const char *prefill, char **ret)
   else
     url[0] = '\0';
 
-  print_global_header_footer(NULL);
+  print_global_header_footer(NULL, NO_SELECTION);
   print_title("Please enter the image URL");
 
   mvprintw(4, 0, "> ");
@@ -127,7 +127,7 @@ get_url(const char *prefill, char **ret)
 				     error_msg, "Really use this URL?"))
 		break;
 	      // Redraw screen
-	      print_global_header_footer(NULL);
+	      print_global_header_footer(NULL, NO_SELECTION);
 	      print_title("Please enter the image URL");
 
 	      mvprintw(4, 0, "> ");
@@ -363,9 +363,6 @@ get_file(const char *prefill, char **ret)
       _cleanup_free_ char **options = NULL;
       int num_options = 0;
 
-      print_global_header_footer(NULL);
-      print_title(curr_dir /*"Select Source Image"*/);
-
       MSG_INFO("Current directory='%s'", curr_dir);
 
       r = load_directory(curr_dir, &entries, &size_entries);
@@ -385,7 +382,8 @@ get_file(const char *prefill, char **ret)
             selected = i;
         }
 
-      selected = choose_entry(4, (const char **)options, num_options, selected);
+      selected = choose_entry(4, (const char **)options, num_options, selected,
+                              curr_dir, NULL);
       if (selected < 0) // canceld or error.
 	{
 	  MSG_INFO("get_file aborted: %i", -selected);
@@ -581,10 +579,8 @@ get_url_from_list(char **ret)
       return -ENOENT;
     }
 
-  print_global_header_footer(NULL);
-  print_title("Select image from download server");
-
-  selected = choose_entry(4, (const char **)names, num_names, 0);
+  selected = choose_entry(4, (const char **)names, num_names, 0,
+                          "Select image from download server", NULL);
   if (selected < 0)
     r = selected;
   else if (asprintf(ret, "%s/%s", rdii_download_server, names[selected]) < 0)
@@ -613,10 +609,8 @@ select_installation_source(const char *prefill, char **ret)
 
   while (1)
     {
-      print_global_header_footer(NULL);
-      print_title("Select Source Image");
-
-      selected = choose_entry(4, options, num_options, selected);
+      selected = choose_entry(4, options, num_options, selected,
+                              "Select Source Image", NULL);
       switch(selected)
 	{
 	case 0: // select from downloaded list
