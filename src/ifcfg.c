@@ -252,7 +252,7 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
   if (r < 0)
     return r;
 
-  if (vlanid > 0)
+  if (r < 0)
     {
       r = write_vlan_file(output_dir, cfg.interface, vlanid);
       if (r <0)
