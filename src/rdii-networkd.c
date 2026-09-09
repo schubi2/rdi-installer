@@ -224,7 +224,7 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
   fputs("[Match]\n", fp);
   if (vlanid > 0)
     {
-        fprintf(fp, "Name=Vlan%04d\n", vlanid);
+        fprintf(fp, "Name=vlan%04d\n", vlanid);
         fputs("Type=vlan\n", fp);
     }
   else if (physical_interfaces_only && (isempty(cfg->interface) || streq(cfg->interface, "*")))
@@ -472,7 +472,7 @@ get_vlan_id(const char *vlan_name, int *ret)
 	char *ep;
 	long l;
 	int vlanid = 0;
-	int r;
+        int r;
 
 	p++;
 	l = strtol(p, &ep, 10);
@@ -485,7 +485,7 @@ get_vlan_id(const char *vlan_name, int *ret)
 	  }
 	vlanid = l;
 
-	r = register_vlan_netdev(vlanid, vlan_name);
+        r = register_vlan_netdev(vlanid, vlan_name);
 	if (r < 0)
 	  return r;
 
