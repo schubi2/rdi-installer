@@ -373,6 +373,26 @@ is_duplicate(vlan_t *list, int count, int new_id)
 }
 
 int
+register_vlan_netdev(int vlanid, const char *name)
+{
+  if (is_duplicate(vlans, nr_vlanids, vlanid))
+    return 0;
+
+  if ((nr_vlanids+1) == vlan_capacity)
+    {
+      MSG_ERROR("Too many vlans!");
+      return -ENOMEM;
+    }
+
+  vlans[nr_vlanids].id = vlanid;
+  vlans[nr_vlanids].name = name;
+  nr_vlanids++;
+  MSG_DEBUG("Stored VLAN ID: %d (%s)", vlanid, name);
+
+  return 0;
+}
+
+int
 append_route_settings(const char *gateway, const char *destination, ip_t *cfg)
 {
   if (cfg->gateways_count >= MAX_GATEWAYS)
@@ -402,6 +422,7 @@ get_vlan_id(const char *vlan_name, int *ret)
 	char *ep;
 	long l;
 	int vlanid = 0;
+	int r;
 
 	p++;
 	l = strtol(p, &ep, 10);
@@ -414,19 +435,10 @@ get_vlan_id(const char *vlan_name, int *ret)
 	  }
 	vlanid = l;
 
-	if (!is_duplicate(vlans, nr_vlanids, vlanid))
-	  {
-	    if ((nr_vlanids+1) == vlan_capacity)
-	      {
-		MSG_ERROR( "Too many vlans!");
-		return -ENOMEM;
-	      }
+	r = register_vlan_netdev(vlanid, vlan_name);
+	if (r < 0)
+	  return r;
 
-	    vlans[nr_vlanids].id = vlanid;
-	    vlans[nr_vlanids].name = vlan_name;
-	    nr_vlanids++;
-            MSG_DEBUG("Stored VLAN ID: %d (%s)", vlanid, vlan_name);
-	  }
 	*ret = vlanid;
 	return 0;
       }

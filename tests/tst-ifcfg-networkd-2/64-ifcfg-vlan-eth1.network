@@ -4,7 +4,7 @@ Type=ether
 
 [Network]
 Description=The unconfigured physical ethernet device
-VLAN=Vlan0033
+VLAN=vlan0033
 # 'tagged only' setup
 LinkLocalAddressing=no
 LLDP=no

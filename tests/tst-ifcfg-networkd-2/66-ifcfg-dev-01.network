@@ -1,5 +1,5 @@
 [Match]
-Name=Vlan0066
+Name=vlan0066
 Type=vlan
 
 [Network]

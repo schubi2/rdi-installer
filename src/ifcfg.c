@@ -19,7 +19,6 @@
 #include "logger.h"
 
 /* Configuration */
-#define NETDEV_PREFIX  "62-ifcfg-vlan"
 #define VLAN_PREFIX    "64-ifcfg-vlan"
 #define IFCFG_PREFIX   "66-ifcfg-dev"
 
@@ -100,7 +99,7 @@ write_vlan_file(const char *output_dir, const char *interface, int vlanid)
 
       fprintf(fp, "\n[Network]\n");
       fprintf(fp, "Description=The unconfigured physical ethernet device\n");
-      fprintf(fp, "VLAN=Vlan%04d\n", vlanid);
+      fprintf(fp, "VLAN=vlan%04d\n", vlanid);
       fprintf(fp, "# 'tagged only' setup\n");
       fprintf(fp, "LinkLocalAddressing=no\n");
       fprintf(fp, "LLDP=no\n");
@@ -118,7 +117,7 @@ write_vlan_file(const char *output_dir, const char *interface, int vlanid)
                  filepath, strerror(-r));
 	  return r;
 	}
-      fprintf(fp, "VLAN=Vlan%04d\n", vlanid);
+      fprintf(fp, "VLAN=vlan%04d\n", vlanid);
     }
 
   return 0;
@@ -154,7 +153,7 @@ write_network_file(const char *output_dir, int nr, ip_t *cfg,
   fprintf(fp, "[Match]\n");
   if (vlanid)
     {
-      fprintf(fp, "Name=Vlan%04d\n", vlanid);
+      fprintf(fp, "Name=vlan%04d\n", vlanid);
       fprintf(fp, "Type=vlan\n");
     }
   else
@@ -224,69 +223,6 @@ write_network_file(const char *output_dir, int nr, ip_t *cfg,
   return 0;
 }
 
-/* VLAN functions */
-#define VLAN_CAPACITY 10
-static const int vlan_capacity = VLAN_CAPACITY;
-static int vlans[VLAN_CAPACITY];
-static int nr_vlanids = 0;
-
-static bool
-is_duplicate(int *list, int count, int new_id)
-{
-  for (int i = 0; i < count; i++)
-    if (list[i] == new_id)
-	return true;
-
-  return false;
-}
-
-static int
-write_netdev_file(const char *output_dir, int vlanid)
-{
-  _cleanup_free_ char *filepath = NULL;
-  _cleanup_fclose_ FILE *fp = NULL;
-  int r;
-
-  if (asprintf(&filepath, "%s/%s%04d.netdev",
-	       output_dir, NETDEV_PREFIX, vlanid) < 0)
-    return -ENOMEM;
-
-  MSG_INFO("Creating vlan netdev: %s for vlan id '%d'", filepath,
-          vlanid);
-
-  fp = fopen(filepath, "w");
-  if (!fp)
-    {
-      r = -errno;
-      MSG_ERROR("Failed to open network file '%s' for writing: %s",
-             filepath, strerror(-r));
-      return r;
-    }
-
-  fprintf(fp, "[NetDev]\n");
-  fprintf(fp, "Name=Vlan%04d\n", vlanid);
-  fprintf(fp, "Kind=vlan\n");
-
-  fprintf(fp, "\n[VLAN]\n");
-  fprintf(fp, "Id=Vlan%d\n", vlanid);
-
-  return 0;
-}
-
-int
-create_netdev_files(const char *output_dir)
-{
-  int r;
-
-  for (int i = 0; i < nr_vlanids; i++)
-    {
-      r = write_netdev_file(output_dir, vlans[i]);
-      if (r != 0)
-	return r;
-    }
-  return 0;
-}
-
 // XXX merge with ip.c
 static int
 extract_word(char **str, const char *sep, bool required, char **ret)
@@ -350,18 +286,13 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
 	    }
 	  vlanid = l;
 
-	  if (!is_duplicate(vlans, nr_vlanids, vlanid))
-	    {
-	      if ((nr_vlanids+1) == vlan_capacity)
-		{
-		  MSG_ERROR("Too many vlans!");
-		  return -ENOMEM;
-		}
+	  char *vlan_name;
+	  if (asprintf(&vlan_name, "vlan%04d", vlanid) < 0)
+	    return -ENOMEM;
 
-	      vlans[nr_vlanids] = vlanid;
-	      nr_vlanids++;
-              MSG_DEBUG("Stored VLAN ID: %d", vlanid);
-	    }
+	  r = register_vlan_netdev(vlanid, vlan_name);
+	  if (r < 0)
+	    return r;
 	}
     }
 

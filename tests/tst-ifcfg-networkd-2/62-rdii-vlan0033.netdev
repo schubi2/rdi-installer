@@ -1,6 +1,6 @@
 [NetDev]
-Name=Vlan0067
+Name=vlan0033
 Kind=vlan
 
 [VLAN]
-Id=Vlan67
+Id=33
