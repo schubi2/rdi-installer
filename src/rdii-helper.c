@@ -279,7 +279,7 @@ main_set_keymap(int argc, char **argv)
 {
   int f_flag = 0;
   int r;
-  const char *title = "Select Keymap";
+  const char *title = NULL;
 
   while (1)
     {
@@ -331,8 +331,8 @@ main_set_keymap(int argc, char **argv)
 
   if (f_flag || is_linux_vt())
     {
-      init_ncurses(NULL);
-      r = select_keymap(NULL, title);
+      init_ncurses(title);
+      r = select_keymap(NULL);
       endwin();
       if (r < 0)
 	return -r;

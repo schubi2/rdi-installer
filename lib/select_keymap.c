@@ -172,10 +172,10 @@ update_filter(void)
 }
 
 static void
-draw_ui(const char *title)
+draw_ui(void)
 {
   print_global_header_footer(NULL);
-  print_title(title);
+  print_title("Keyboard Settings");
 
   attron(COLOR_PAIR(CP_UNSELECTED));
   mvprintw(4, 2, "Filter: ");
@@ -223,7 +223,7 @@ draw_ui(const char *title)
 }
 
 int
-select_keymap(char **ret, const char *title)
+select_keymap(char **ret)
 {
   _cleanup_free_ char *keymap = NULL;
   int ch;
@@ -250,7 +250,7 @@ select_keymap(char **ret, const char *title)
 
   while (running)
     {
-      draw_ui(title);
+      draw_ui();
       ch = getch();
 
       switch (ch)

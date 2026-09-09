@@ -3,4 +3,4 @@
 #pragma once
 
 extern int set_keymap(const char *keymap);
-extern int select_keymap(char **device, const char *title);
+extern int select_keymap(char **device);
