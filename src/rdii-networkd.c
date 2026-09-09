@@ -37,6 +37,7 @@ static int used_configs = 0;
 typedef struct {
   int id;
   const char *name;
+  const char *prefix;
 } vlan_t;
 
 #define VLAN_CAPACITY 10
@@ -372,7 +373,7 @@ write_netdev_file(const char *output_dir, vlan_t *vlan)
   int r;
 
   if (asprintf(&filepath, "%s/%s-%s.netdev",
-               output_dir, NETDEV_PREFIX, vlan->name) < 0)
+               output_dir, vlan->prefix, vlan->name) < 0)
     return -ENOMEM;
 
   MSG_DEBUG("Creating vlan netdev: %s for vlan id '%d'", filepath,
@@ -423,7 +424,7 @@ is_duplicate(vlan_t *list, int count, int new_id)
 }
 
 int
-register_vlan_netdev(int vlanid, const char *name)
+register_vlan_netdev(int vlanid, const char *name, const char *prefix)
 {
   if (is_duplicate(vlans, nr_vlanids, vlanid))
     return 0;
@@ -436,6 +437,7 @@ register_vlan_netdev(int vlanid, const char *name)
 
   vlans[nr_vlanids].id = vlanid;
   vlans[nr_vlanids].name = name;
+  vlans[nr_vlanids].prefix = prefix;
   nr_vlanids++;
   MSG_DEBUG("Stored VLAN ID: %d (%s)", vlanid, name);
 
@@ -485,7 +487,7 @@ get_vlan_id(const char *vlan_name, int *ret)
 	  }
 	vlanid = l;
 
-        r = register_vlan_netdev(vlanid, vlan_name);
+        r = register_vlan_netdev(vlanid, vlan_name, NETDEV_PREFIX);
 	if (r < 0)
 	  return r;
 
