@@ -133,37 +133,6 @@ map_ifcfg_to_networkd(const char *input)
   return NULL;
 }
 
-typedef struct {
-    const char *ifcfg;
-    const char *networkd;
-} dhcp_ifcfg_networkd_t;
-
-static const char*
-map_ifcfg_to_networkd(const char *input)
-{
-  const dhcp_ifcfg_networkd_t mappings[] =
-    {
-      { "dhcp",       "yes" },
-      { "dhcp4",      "ipv4" },
-      { "dhcp6",      "ipv6" },
-      { NULL,         NULL }
-    };
-
-  if (isempty(input))
-    return NULL;
-
-  for (int i = 0; mappings[i].ifcfg != NULL; i++)
-    {
-      // Use strcmp for exact match, or strcasecmp for case-insensitive
-      if (streq(input, mappings[i].ifcfg))
-        return mappings[i].networkd;
-    }
-
-  MSG_ERROR("Unknown autoconf option '%s', valid are {dhcp|dhcp4|dhcp6}", input);
-
-  return NULL;
-}
-
 /* Parses a single ifcfg string */
 int
 parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
