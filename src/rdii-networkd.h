@@ -11,7 +11,7 @@ typedef struct {
   const char *gateways[MAX_GATEWAYS];
   int gateways_count;
   const char *destinations[MAX_GATEWAYS];
-  int netmask;
+  int netmask; // -1 = unset/not applicable, >= 0 = parsed CIDR prefix length
   const char *hostname;
   const char *interface;
   const char *autoconf;

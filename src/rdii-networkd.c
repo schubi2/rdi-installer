@@ -33,6 +33,13 @@
 static ip_t configs[MAX_INTERFACES] = {0};
 static int used_configs = 0;
 
+static void
+init_configs(void)
+{
+  for (int i = 0; i < MAX_INTERFACES; i++)
+    configs[i].netmask = -1;
+}
+
 /* VLAN */
 typedef struct {
   int id;
@@ -62,16 +69,20 @@ dup_config(ip_t *cfg, int slot)
 	}
     }
 
-  if (cfg->netmask)
+  if (cfg->netmask >= 0)
     configs[slot].netmask = cfg->netmask;
   if (!isempty(cfg->hostname))
     configs[slot].hostname = cfg->hostname;
   if (!isempty(cfg->interface))
     configs[slot].interface = cfg->interface;
   if (!isempty(cfg->autoconf))
-    configs[slot].autoconf = cfg->autoconf;
-  if (!isempty(cfg->autoconf_networkd))
-    configs[slot].autoconf_networkd = cfg->autoconf_networkd;
+    {
+      /* Keep autoconf and its mapped networkd value in sync: an
+	 invalid autoconf value maps to NULL, and must clear any
+	 stale mapping left over from a previous merged entry. */
+      configs[slot].autoconf = cfg->autoconf;
+      configs[slot].autoconf_networkd = cfg->autoconf_networkd;
+    }
   if (cfg->use_dns)
     configs[slot].use_dns = cfg->use_dns;
   if (!isempty(cfg->dns1))
@@ -258,7 +269,7 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
     {
       fputs("\n[Network]\n", fp);
 
-      if (!isempty(cfg->client_ip) && cfg->netmask <= 0)
+      if (!isempty(cfg->client_ip) && cfg->netmask < 0)
         {
           /* Space-separated multi-IP write fallback */
           /* Complexer addresses will be written in the [Address] section */
@@ -335,7 +346,7 @@ write_network_config(const char *output_dir, const char *prefix, int line_num,
    }
 
   /* ----------------------------- [Address] Section ----------------------------- */
-  if (!isempty(cfg->client_ip) && cfg->netmask > 0)
+  if (!isempty(cfg->client_ip) && cfg->netmask >= 0)
     {
       fputs("\n[Address]\n", fp);
       /* Primary CIDR assignment */
@@ -741,6 +752,8 @@ main(int argc, char *argv[])
 
   MSG_DEBUG("cmdline=%s", line);
 
+  init_configs();
+
   // Parse loop handling quotes
   char *cp = line;
   char *arg_start = cp;
@@ -783,6 +796,8 @@ main(int argc, char *argv[])
 	    {
 	      ip_t cfg = {0};
 	      bool merge = true;
+
+	      cfg.netmask = -1;
 
 	      // this options are normally handled by systemd-network-generator
 	      if (startswith(arg_start, "ip="))

@@ -121,19 +121,15 @@ extract_word(char **str, const char *sep, bool required, char **ret)
 
       token = *str;
 
-      /* Check if a delimiter immediately follows the closing bracket */
+      /* A bracketed token must be immediately followed by a separator
+         or the end of the string; anything else is malformed input. */
       char *next = end + 1;
       if (*next != '\0')
         {
-          if (strchr(sep, *next) != NULL)
-            {
-              *next = '\0'; /* Terminate string at separator */
-              *str = next + 1;
-            }
-          else
-            {
-              *str = next;
-            }
+          if (strchr(sep, *next) == NULL)
+            return -EINVAL;
+          *next = '\0'; /* Terminate string at separator */
+          *str = next + 1;
         }
       else
         {
