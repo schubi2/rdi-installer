@@ -16,7 +16,7 @@
 #include "select_keymap.h"
 #include "is_linux_vt.h"
 
-#define TITLE "Raw Disk Installer Version " VERSION
+#define TITLE "Raw Disk Image Installer Version " VERSION
 
 const char *rdii_config = "/run/rdi-installer/rdii-config";
 const char *rdii_tmp_dir = NULL;
