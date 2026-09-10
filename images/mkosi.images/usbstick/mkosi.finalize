@@ -1,6 +1,0 @@
-#! /bin/bash
-
-set -e
-
-# timeout for bootloader
-echo "timeout 8" >> /buildroot/efi/loader/loader.conf

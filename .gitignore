@@ -11,6 +11,7 @@ mkosi.log
 mkosi.output
 mkosi.crt
 mkosi.key
+mkosi.sandbox
 *.raw
 *.efi
 *.manifest
