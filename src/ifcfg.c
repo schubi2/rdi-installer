@@ -139,6 +139,7 @@ parse_ifcfg_arg(const char *output_dir, int nr, const char *arg)
 {
   ip_t cfg = {0}; // Initialize all pointers to NULL
   _cleanup_free_ char *copy_to_free = strdup(arg); // to free everything
+  cfg.netmask = -1; // ifcfg has no separate netmask field; CIDR is embedded in the address itself
   char *str = copy_to_free; // Pointer for strsep
   char *token;
   /* vlan */
