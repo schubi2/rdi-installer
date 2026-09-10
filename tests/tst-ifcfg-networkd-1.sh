@@ -2,28 +2,20 @@
 
 set -e
 
-cleanup()
-{
-    local exit_code=$?
+# Source shared test utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/test_utils.sh"
 
-    if [ -n "$TEMPDIR" ] && [ -d "$TEMPDIR" ]; then
-        rm -rf "$TEMPDIR"
-    fi
-
-    exit $exit_code
-}
-
-trap cleanup EXIT
-
-
+# Initialize temp dir and register exit trap
 TEMPDIR=$(mktemp -d)
+enable_cleanup_trap
 
-./rdii-networkd -o "$TEMPDIR" "ifcfg=*=dhcp" "ifcfg=00:11:22:33:44:55=dhcp,rfc2132" ifcfg='"eth1=192.168.0.2/24 192.158.10.12/24,192.168.0.1,8.8.8.8,mydomain.com"'
+# Execute networkd test command
+./rdii-networkd -o "$TEMPDIR" \
+		"ifcfg=*=dhcp" \
+		"ifcfg=00:11:22:33:44:55=dhcp,rfc2132" \
+		ifcfg='"eth1=192.168.0.2/24 192.158.10.12/24,192.168.0.1,8.8.8.8,mydomain.com"'
 
-for cfg in "${TEMPDIR}"/*; do
-    cfg=$(basename "$cfg")
-    if ! cmp "$TEMPDIR/$cfg" "../tests/tst-ifcfg-networkd-1/$cfg" ; then
-       diff -u "../tests/tst-ifcfg-networkd-1/$cfg" "$TEMPDIR/$cfg"
-       exit 1
-    fi
-done
+# Run bidirectional assertion against reference directory
+REF_DIR="../tests/tst-ifcfg-networkd-1"
+assert_dirs_match "$TEMPDIR" "$REF_DIR"
