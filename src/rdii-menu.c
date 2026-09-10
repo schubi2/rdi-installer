@@ -204,7 +204,7 @@ show_main_menu(const char *def_image, const char *def_device, const char *def_md
   const char *options[] = {
     "Select Image",
     "Select Target",
-    "Enable MD Devices (Raid1)",
+    "Enable MD Raid1",
     "Select Keymap",
     "System Information",
     "Start Installation",
@@ -313,7 +313,7 @@ show_main_menu(const char *def_image, const char *def_device, const char *def_md
 		if (!isempty(device) && !isempty(mdraid))
 		  {
 		    mdraid_entry = mfree(mdraid_entry);
-		    if (asprintf(&mdraid_entry, "Enable MD Devices (Raid1) (%s, %s)",
+		    if (asprintf(&mdraid_entry, "Enable MD Raid1 (%s, %s)",
 				 device, mdraid) < 0)
 		      return -ENOMEM;
 		    options[selected] = mdraid_entry;
