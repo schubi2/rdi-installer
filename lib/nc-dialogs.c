@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <wchar.h>
+#include <ctype.h>
 
 #include "basics.h"
 #include "logger.h"
@@ -311,63 +312,180 @@ show_info_popup(const char *headline, const char *descr)
 }
 
 void show_help_dialog(const char *title, const char *text) {
-    int max_y, max_x;
-    getmaxyx(stdscr, max_y, max_x);
+  int max_y, max_x;
+  getmaxyx(stdscr, max_y, max_x);
 
-    if (!text)
-      return;
+  if (!text)
+    return;
 
-    // Set dialog dimensions (e.g., 60% of terminal screen)
-    int height = max_y * 0.6;
-    int width = max_x * 0.6;
+  // Set dialog dimensions (e.g., 60% of terminal screen)
+  int height = max_y * 0.6;
+  int width = max_x * 0.6;
 
-    // Fallback bounds for small terminals
-    if (height < 8) height = 8;
-    if (width < 30) width = 30;
+  // Fallback bounds for small terminals
+  if (height < 8) height = 8;
+  if (width < 30) width = 30;
 
-    int start_y = (max_y - height) / 2;
-    int start_x = (max_x - width) / 2;
+  int start_y = (max_y - height) / 2;
+  int start_x = (max_x - width) / 2;
 
-    // Save previous cursor visibility
-    int prev_cursor = curs_set(0);
+  int prev_cursor = curs_set(0);
 
-    // Create popup window and a sub-window for text padded inside borders
-    WINDOW *help_win = newwin(height, width, start_y, start_x);
-    WINDOW *text_win = derwin(help_win, height - 4, width - 4, 2, 2);
+  // Create main window and internal text pad area
+  WINDOW *help_win = newwin(height, width, start_y, start_x);
+  int text_win_h = height - 4;
+  int text_win_w = width - 4;
+  WINDOW *text_win = derwin(help_win, text_win_h, text_win_w, 2, 2);
 
-    // Enable keypad for the popup
-    keypad(help_win, TRUE);
+  keypad(help_win, TRUE);
 
-    // Draw border and title bar
-    box(help_win, 0, 0);
-    if (title) {
-        mvwprintw(help_win, 0, (width - strlen(title) - 2) / 2, " %s ", title);
+  // --- Line Wrapping Logic ---
+  // Break the input string into lines bounded by text_win_w
+  int max_lines = 1024; // Allocate buffer for wrapped lines
+  char **lines = malloc(sizeof(char *) * max_lines);
+  int line_count = 0;
+
+  const char *ptr = text;
+  while (*ptr && line_count < max_lines) {
+    if (*ptr == '\n')
+      {
+        lines[line_count] = strdup("");
+        line_count++;
+        ptr++;
+        continue;
+      }
+
+    // Measure line length up to newline or maximum width
+    int len = 0;
+    int break_point = -1;
+
+    while (ptr[len] && ptr[len] != '\n' && len < text_win_w)
+      {
+        if (isspace((unsigned char)ptr[len]))
+          {
+            break_point = len;
+          }
+        len++;
+      }
+
+    // Handle word wrap: break at space if line exceeds width
+    if (len == text_win_w && ptr[len] != '\0' && ptr[len] != '\n' && break_point > 0)
+      {
+        len = break_point;
+      }
+
+    char *line_buf = malloc(len + 1);
+    strncpy(line_buf, ptr, len);
+    line_buf[len] = '\0';
+    lines[line_count++] = line_buf;
+
+    ptr += len;
+    if (*ptr == ' ' || *ptr == '\n')
+      {
+        ptr++; // Skip whitespace delimiter
+      }
+  }
+
+  int scroll_offset = 0;
+  int ch;
+
+  // --- Main Event Loop ---
+  while (1)
+    {
+      // Redraw outer dialog frame
+      werase(help_win);
+      box(help_win, 0, 0);
+
+      if (title)
+        {
+          mvwprintw(help_win, 0, (width - (int)strlen(title) - 2) / 2, " %s ", title);
+        }
+
+      const char *footer = (line_count > text_win_h) ? " Up/Down: Scroll | Press any key to exit " :
+        "  Press any key to exit ";
+      mvwprintw(help_win, height - 1, (width - (int)strlen(footer)) / 2, "%s", footer);
+
+      // Render visible slice of text
+      werase(text_win);
+      for (int i = 0; i < text_win_h; i++)
+        {
+          int current_line = scroll_offset + i;
+          if (current_line < line_count)
+            {
+              mvwprintw(text_win, i, 0, "%s", lines[current_line]);
+            }
+        }
+
+      // Draw scroll bar if text overflows window height
+      if (line_count > text_win_h)
+        {
+          int track_height = text_win_h;
+          int bar_size = (track_height * text_win_h) / line_count;
+          if (bar_size < 1) bar_size = 1;
+
+          int max_offset = line_count - text_win_h;
+          int bar_pos = (scroll_offset * (track_height - bar_size)) / max_offset;
+
+          // Draw track along the right edge
+          for (int y = 0; y < track_height; y++)
+            {
+              mvwaddch(help_win, 2 + y, width - 1, ACS_VLINE);
+            }
+
+          // Draw scroll thumb/handle
+          wattron(help_win, A_REVERSE);
+          for (int y = 0; y < bar_size; y++)
+            {
+              mvwaddch(help_win, 2 + bar_pos + y, width - 1, ' ');
+            }
+          wattroff(help_win, A_REVERSE);
+        }
+
+      wrefresh(help_win);
+      wrefresh(text_win);
+
+      // Navigation input processing
+      ch = wgetch(help_win);
+      if (ch == KEY_UP)
+        {
+          if (scroll_offset > 0) scroll_offset--;
+        }
+      else if (ch == KEY_DOWN)
+        {
+          if (scroll_offset < line_count - text_win_h) scroll_offset++;
+        }
+      else if (ch == KEY_NPAGE)
+        { // Page Down
+          scroll_offset += text_win_h;
+          if (scroll_offset > line_count - text_win_h)
+            scroll_offset = line_count - text_win_h;
+          if (scroll_offset < 0) scroll_offset = 0;
+        }
+      else if (ch == KEY_PPAGE)
+        { // Page Up
+          scroll_offset -= text_win_h;
+          if (scroll_offset < 0) scroll_offset = 0;
+        }
+      else
+        {
+          // Exit loop on any other key press
+          break;
+        }
     }
 
-    // Print footer instruction
-    const char *footer = " Press any key to return ";
-    mvwprintw(help_win, height - 1, (width - strlen(footer)) / 2, "%s", footer);
+  // Cleanup allocated memory
+  for (int i = 0; i < line_count; i++)
+    {
+      free(lines[i]);
+    }
+  free(lines);
+  // Cleanup ncurses resources
+  delwin(text_win);
+  delwin(help_win);
 
-    // Render help text into text sub-window
-    wattron(text_win, A_NORMAL);
-    mvwprintw(text_win, 0, 0, "%s", text);
-    wattroff(text_win, A_NORMAL);
-
-    // Refresh popup windows to bring them to foreground
-    wrefresh(help_win);
-    wrefresh(text_win);
-
-    // Block until user presses any key to dismiss
-    wgetch(help_win);
-
-    // Cleanup popup resources
-    delwin(text_win);
-    delwin(help_win);
-
-    // Restore background screen and cursor
-    curs_set(prev_cursor);
-    touchwin(stdscr);
-    refresh();
+  curs_set(prev_cursor);
+  touchwin(stdscr);
+  refresh();
 }
 
 int

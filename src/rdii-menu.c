@@ -266,6 +266,7 @@ show_main_menu(const char *def_image, const char *def_device, const char *def_md
       const char *help_text = "RDI-installer is a raw disk image installer, whose main "
         "purpose is to have a comfortable and robust tool to boot on bare metal "
         "and install a raw disk image on that hardware.";
+
       selected = choose_entry(4, options, num_options,
                               selected, "Raw Disk Installer", help_text);
       switch(selected)
