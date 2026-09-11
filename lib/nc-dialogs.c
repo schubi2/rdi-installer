@@ -310,6 +310,10 @@ show_info_popup(const char *headline, const char *descr)
   delwin(win);
   refresh();
 }
+#include <ncurses.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
 
 void show_help_dialog(const char *title, const char *text) {
   int max_y, max_x;
@@ -318,18 +322,24 @@ void show_help_dialog(const char *title, const char *text) {
   if (!text)
     return;
 
-  // Set dialog dimensions (e.g., 60% of terminal screen)
-  int height = max_y * 0.6;
-  int width = max_x * 0.6;
+  // Use maximum available width (with a 2-character margin on each side)
+  // and up to 80% screen height for better vertical proportions.
+  int width = max_x - 2;
+  int height = max_y * 0.8;
 
-  // Fallback bounds for small terminals
+  // Fallback bounds for smaller terminals
+  if (width < 20) width = max_x;
   if (height < 8) height = 8;
-  if (width < 30) width = 30;
+  if (height > max_y) height = max_y;
 
   int start_y = (max_y - height) / 2;
   int start_x = (max_x - width) / 2;
 
   int prev_cursor = curs_set(0);
+
+  // Save current mouse mask and enable mouse events
+  mmask_t old_mouse_mask;
+  mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, &old_mouse_mask);
 
   // Create main window and internal text pad area
   WINDOW *help_win = newwin(height, width, start_y, start_x);
@@ -340,51 +350,49 @@ void show_help_dialog(const char *title, const char *text) {
   keypad(help_win, TRUE);
 
   // --- Line Wrapping Logic ---
-  // Break the input string into lines bounded by text_win_w
-  int max_lines = 1024; // Allocate buffer for wrapped lines
+  int max_lines = 2048;
   char **lines = malloc(sizeof(char *) * max_lines);
   int line_count = 0;
 
   const char *ptr = text;
-  while (*ptr && line_count < max_lines) {
-    if (*ptr == '\n')
-      {
-        lines[line_count] = strdup("");
-        line_count++;
-        ptr++;
-        continue;
-      }
+  while (*ptr && line_count < max_lines)
+    {
+      if (*ptr == '\n')
+        {
+          lines[line_count] = strdup("");
+          line_count++;
+          ptr++;
+          continue;
+        }
 
-    // Measure line length up to newline or maximum width
-    int len = 0;
-    int break_point = -1;
+      int len = 0;
+      int break_point = -1;
 
-    while (ptr[len] && ptr[len] != '\n' && len < text_win_w)
-      {
-        if (isspace((unsigned char)ptr[len]))
-          {
-            break_point = len;
-          }
-        len++;
-      }
+      while (ptr[len] && ptr[len] != '\n' && len < text_win_w)
+        {
+          if (isspace((unsigned char)ptr[len]))
+            {
+              break_point = len;
+            }
+          len++;
+        }
 
-    // Handle word wrap: break at space if line exceeds width
-    if (len == text_win_w && ptr[len] != '\0' && ptr[len] != '\n' && break_point > 0)
-      {
-        len = break_point;
-      }
+      if (len == text_win_w && ptr[len] != '\0' && ptr[len] != '\n' && break_point > 0)
+        {
+          len = break_point;
+        }
 
-    char *line_buf = malloc(len + 1);
-    strncpy(line_buf, ptr, len);
-    line_buf[len] = '\0';
-    lines[line_count++] = line_buf;
+      char *line_buf = malloc(len + 1);
+      strncpy(line_buf, ptr, len);
+      line_buf[len] = '\0';
+      lines[line_count++] = line_buf;
 
-    ptr += len;
-    if (*ptr == ' ' || *ptr == '\n')
-      {
-        ptr++; // Skip whitespace delimiter
-      }
-  }
+      ptr += len;
+      if (*ptr == ' ' || *ptr == '\n')
+        {
+          ptr++;
+        }
+    }
 
   int scroll_offset = 0;
   int ch;
@@ -392,7 +400,6 @@ void show_help_dialog(const char *title, const char *text) {
   // --- Main Event Loop ---
   while (1)
     {
-      // Redraw outer dialog frame
       werase(help_win);
       box(help_win, 0, 0);
 
@@ -401,8 +408,9 @@ void show_help_dialog(const char *title, const char *text) {
           mvwprintw(help_win, 0, (width - (int)strlen(title) - 2) / 2, " %s ", title);
         }
 
-      const char *footer = (line_count > text_win_h) ? " Up/Down: Scroll | Press any key to exit " :
+      const char *footer = (line_count > text_win_h) ? " Up/Down/Wheel: Scroll | Press any key to exit " :
         "  Press any key to exit ";
+
       mvwprintw(help_win, height - 1, (width - (int)strlen(footer)) / 2, "%s", footer);
 
       // Render visible slice of text
@@ -426,13 +434,13 @@ void show_help_dialog(const char *title, const char *text) {
           int max_offset = line_count - text_win_h;
           int bar_pos = (scroll_offset * (track_height - bar_size)) / max_offset;
 
-          // Draw track along the right edge
+          // Draw track
           for (int y = 0; y < track_height; y++)
             {
               mvwaddch(help_win, 2 + y, width - 1, ACS_VLINE);
             }
 
-          // Draw scroll thumb/handle
+          // Draw scroll bar handle
           wattron(help_win, A_REVERSE);
           for (int y = 0; y < bar_size; y++)
             {
@@ -444,9 +452,31 @@ void show_help_dialog(const char *title, const char *text) {
       wrefresh(help_win);
       wrefresh(text_win);
 
-      // Navigation input processing
+      // Input processing
       ch = wgetch(help_win);
-      if (ch == KEY_UP)
+
+      if (ch == KEY_MOUSE)
+        {
+          MEVENT event;
+          if (getmouse(&event) == OK)
+            {
+              // Mouse Wheel Up
+              if (event.bstate & BUTTON4_PRESSED)
+                {
+                  if (scroll_offset > 0) scroll_offset -= 3;
+                  if (scroll_offset < 0) scroll_offset = 0;
+                }
+              // Mouse Wheel Down
+              else if (event.bstate & BUTTON5_PRESSED)
+                {
+                  if (scroll_offset < line_count - text_win_h) scroll_offset += 3;
+                    if (scroll_offset > line_count - text_win_h)
+                      scroll_offset = line_count - text_win_h;
+                    if (scroll_offset < 0) scroll_offset = 0;
+                }
+            }
+        }
+      else if (ch == KEY_UP)
         {
           if (scroll_offset > 0) scroll_offset--;
         }
@@ -468,17 +498,21 @@ void show_help_dialog(const char *title, const char *text) {
         }
       else
         {
-          // Exit loop on any other key press
+          // Exit loop on any non-navigation key press
           break;
         }
     }
 
-  // Cleanup allocated memory
+  // Cleanup allocated lines memory
   for (int i = 0; i < line_count; i++)
     {
       free(lines[i]);
     }
   free(lines);
+
+  // Restore previous mouse state
+  mousemask(old_mouse_mask, NULL);
+
   // Cleanup ncurses resources
   delwin(text_win);
   delwin(help_win);
