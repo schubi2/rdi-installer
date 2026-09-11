@@ -25,6 +25,8 @@ select_mdraid_devices(uint64_t minsize, char **device1, char **device2)
   int count;
   int r;
 
+  const char *help_text = "During installation a MD Raid (Raid 1) can be created and used as device for the image. You have to set the first and the second device. rdi-intaller does not make any modifications to the image, it needs to contain already everything to assembly the MD device during boot.";
+
   r = get_devices(&disk, &count);
   if (r < 0)
     return r;
@@ -69,7 +71,7 @@ select_mdraid_devices(uint64_t minsize, char **device1, char **device2)
 
   // Select first device
   selected1 = choose_entry(4, (const char **)options, n, selected1,
-                           "Select First Disk for mdraid", NULL);
+                           "Select First Disk for mdraid", help_text);
   if (selected1 < 0)
     return selected1;
 
@@ -101,7 +103,7 @@ select_mdraid_devices(uint64_t minsize, char **device1, char **device2)
     {
       // Select second device
       selected2 = choose_entry(4, (const char **)options, n, selected2,
-                               "Select Second Disk for mdraid", NULL);
+                               "Select Second Disk for mdraid", help_text);
       if (selected2 < 0)
 	return selected2;
 
