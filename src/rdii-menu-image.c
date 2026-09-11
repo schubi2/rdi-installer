@@ -579,8 +579,16 @@ get_url_from_list(char **ret)
       return -ENOENT;
     }
 
+  char *header;
+  const char *help_text = "Select raw disk image which has to be installed on the target system.\n"
+    "The name of the default download server can be changed by the value of rdii.download_server, set "
+    "by the kernel cmdline during boot or by a configuration file.\n";
+
+  if (asprintf(&header, "Select image from download server %s", rdii_download_server) < 0)
+    r = -ENOMEM;
+
   selected = choose_entry(4, (const char **)names, num_names, 0,
-                          "Select image from download server", NULL);
+                          header, help_text);
   if (selected < 0)
     r = selected;
   else if (asprintf(ret, "%s/%s", rdii_download_server, names[selected]) < 0)
@@ -609,8 +617,17 @@ select_installation_source(const char *prefill, char **ret)
 
   while (1)
     {
+      const char *help_text = "Select a raw disk image to install on the target system.\n"
+        "There are different sources available:\n"
+        "* Select image from download server\n"
+        "    The image will be downloaded from the default server.\n"
+        "* Provide URL\n"
+        "    Specify the full URL of the image file.\n"
+        "* Use file selection\n"
+        "    The image is located on the local file system.\n";
+
       selected = choose_entry(4, options, num_options, selected,
-                              "Select Source Image", NULL);
+                              "Select Source Image", help_text);
       switch(selected)
 	{
 	case 0: // select from downloaded list
