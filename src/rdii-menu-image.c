@@ -579,13 +579,18 @@ get_url_from_list(char **ret)
       return -ENOENT;
     }
 
-  char *header;
+  _cleanup_free_ char *header = NULL;
   const char *help_text = "Select raw disk image which has to be installed on the target system.\n"
     "The name of the default download server can be changed by the value of rdii.download_server, set "
     "by the kernel cmdline during boot or by a configuration file.\n";
 
   if (asprintf(&header, "Select image from download server %s", rdii_download_server) < 0)
-    r = -ENOMEM;
+    {
+      for (int i = 0; i < num_names; i++)
+	free(names[i]);
+      free(names);
+      return -ENOMEM;
+    }
 
   selected = choose_entry(4, (const char **)names, num_names, 0,
                           header, help_text);

@@ -310,10 +310,15 @@ show_info_popup(const char *headline, const char *descr)
   delwin(win);
   refresh();
 }
-#include <ncurses.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+static int
+clamp_scroll_offset(int offset, int line_count, int text_win_h)
+{
+  int max_offset = line_count - text_win_h;
+  if (max_offset < 0) max_offset = 0;
+  if (offset > max_offset) offset = max_offset;
+  if (offset < 0) offset = 0;
+  return offset;
+}
 
 void show_help_dialog(const char *title, const char *text) {
   int max_y, max_x;
@@ -345,6 +350,8 @@ void show_help_dialog(const char *title, const char *text) {
   WINDOW *help_win = newwin(height, width, start_y, start_x);
   int text_win_h = height - 4;
   int text_win_w = width - 4;
+  if (text_win_h < 1) text_win_h = 1;
+  if (text_win_w < 1) text_win_w = 1;
   WINDOW *text_win = derwin(help_win, text_win_h, text_win_w, 2, 2);
 
   keypad(help_win, TRUE);
@@ -405,13 +412,17 @@ void show_help_dialog(const char *title, const char *text) {
 
       if (title)
         {
-          mvwprintw(help_win, 0, (width - (int)strlen(title) - 2) / 2, " %s ", title);
+          int title_x = (width - (int)strlen(title) - 2) / 2;
+          if (title_x < 0) title_x = 0;
+          mvwprintw(help_win, 0, title_x, " %s ", title);
         }
 
       const char *footer = (line_count > text_win_h) ? " Up/Down/Wheel: Scroll | Press any key to exit " :
         "  Press any key to exit ";
 
-      mvwprintw(help_win, height - 1, (width - (int)strlen(footer)) / 2, "%s", footer);
+      int footer_x = (width - (int)strlen(footer)) / 2;
+      if (footer_x < 0) footer_x = 0;
+      mvwprintw(help_win, height - 1, footer_x, "%s", footer);
 
       // Render visible slice of text
       werase(text_win);
@@ -463,38 +474,30 @@ void show_help_dialog(const char *title, const char *text) {
               // Mouse Wheel Up
               if (event.bstate & BUTTON4_PRESSED)
                 {
-                  if (scroll_offset > 0) scroll_offset -= 3;
-                  if (scroll_offset < 0) scroll_offset = 0;
+                  scroll_offset = clamp_scroll_offset(scroll_offset - 3, line_count, text_win_h);
                 }
               // Mouse Wheel Down
               else if (event.bstate & BUTTON5_PRESSED)
                 {
-                  if (scroll_offset < line_count - text_win_h) scroll_offset += 3;
-                    if (scroll_offset > line_count - text_win_h)
-                      scroll_offset = line_count - text_win_h;
-                    if (scroll_offset < 0) scroll_offset = 0;
+                  scroll_offset = clamp_scroll_offset(scroll_offset + 3, line_count, text_win_h);
                 }
             }
         }
       else if (ch == KEY_UP)
         {
-          if (scroll_offset > 0) scroll_offset--;
+          scroll_offset = clamp_scroll_offset(scroll_offset - 1, line_count, text_win_h);
         }
       else if (ch == KEY_DOWN)
         {
-          if (scroll_offset < line_count - text_win_h) scroll_offset++;
+          scroll_offset = clamp_scroll_offset(scroll_offset + 1, line_count, text_win_h);
         }
       else if (ch == KEY_NPAGE)
         { // Page Down
-          scroll_offset += text_win_h;
-          if (scroll_offset > line_count - text_win_h)
-            scroll_offset = line_count - text_win_h;
-          if (scroll_offset < 0) scroll_offset = 0;
+          scroll_offset = clamp_scroll_offset(scroll_offset + text_win_h, line_count, text_win_h);
         }
       else if (ch == KEY_PPAGE)
         { // Page Up
-          scroll_offset -= text_win_h;
-          if (scroll_offset < 0) scroll_offset = 0;
+          scroll_offset = clamp_scroll_offset(scroll_offset - text_win_h, line_count, text_win_h);
         }
       else
         {
