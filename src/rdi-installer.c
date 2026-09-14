@@ -124,6 +124,21 @@ rm_rf_and_freep(char **p)
 }
 
 static void
+validate_image_url(char **url)
+{
+  const char *error_msg = NULL;
+
+  if (isempty(*url) ||
+      (!startswith(*url, "https://") && !startswith(*url, "http://")))
+    return;
+
+  if (!url_is_valid(*url, &error_msg) &&
+      !show_warning_popup("URL doesn't seem to be valid:",
+			   error_msg, "Really use this URL?"))
+    *url = mfree(*url);
+}
+
+static void
 print_usage(FILE *stream)
 {
   fprintf(stream, "Usage: rdi-installer [options]\n");
@@ -229,6 +244,10 @@ main(int argc, char **argv)
       show_error_popup("Failed to read config file:",
                        econf_errString(conf_err), NULL);
     }
+
+  validate_image_url(&image);
+  validate_image_url(&image1);
+  validate_image_url(&image2);
 
   if (download_server)
     rdii_download_server = download_server;
