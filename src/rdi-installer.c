@@ -4,6 +4,8 @@
 
 #include <getopt.h>
 #include <string.h>
+#include <errno.h>
+#include <sys/stat.h>
 #include <libeconf.h>
 
 #include "basics.h"
@@ -138,6 +140,43 @@ validate_image_url(char **url)
     *url = mfree(*url);
 }
 
+/* verify if a device path exists and is a block device */
+static bool
+device_exists(const char *device, const char **error)
+{
+  struct stat st;
+
+  if (stat(device, &st) < 0)
+    {
+      if (error)
+	*error = strerror(errno);
+      return false;
+    }
+
+  if (!S_ISBLK(st.st_mode))
+    {
+      if (error)
+	*error = "not a block device";
+      return false;
+    }
+
+  return true;
+}
+
+static void
+validate_device(char **device)
+{
+  const char *error_msg = NULL;
+
+  if (isempty(*device))
+    return;
+
+  if (!device_exists(*device, &error_msg) &&
+      !show_warning_popup("Device doesn't seem to be available:",
+			   error_msg, "Really use this device?"))
+    *device = mfree(*device);
+}
+
 static void
 print_usage(FILE *stream)
 {
@@ -248,6 +287,9 @@ main(int argc, char **argv)
   validate_image_url(&image);
   validate_image_url(&image1);
   validate_image_url(&image2);
+
+  validate_device(&device);
+  validate_device(&mdraid);
 
   if (download_server)
     rdii_download_server = download_server;
