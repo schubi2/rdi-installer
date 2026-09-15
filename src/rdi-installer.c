@@ -14,6 +14,7 @@
 #include "tmpfile-util.h"
 #include "nc-dialogs.h"
 #include "rdii-menu.h"
+#include "rdii-autoinstall.h"
 #include "logger.h"
 #include "select_keymap.h"
 #include "is_linux_vt.h"
@@ -29,7 +30,8 @@ static econf_err
 read_config(const char *config, char **ret_device, char **ret_mdraid,
 	    char **ret_url, char **ret_url1, char **ret_url2,
 	    char **ret_keymap, char **ret_download_server,
-	    bool *ret_preserve_ssh_hostkey)
+	    bool *ret_preserve_ssh_hostkey, bool *ret_autoinstall,
+	    char **ret_autoinstall_finish)
 {
   _cleanup_(econf_freeFilep) econf_file *key_file = NULL;
   _cleanup_free_ char *device = NULL;
@@ -39,7 +41,9 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
   _cleanup_free_ char *url2 = NULL;
   _cleanup_free_ char *keymap = NULL;
   _cleanup_free_ char *download_server = NULL;
+  _cleanup_free_ char *autoinstall_finish = "reboot";
   bool preserve_ssh_hostkey = false;
+  bool autoinstall = false;
   econf_err error;
 
   error = econf_readFile(&key_file, config,
@@ -87,6 +91,20 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
   if (error == ECONF_SUCCESS && ret_preserve_ssh_hostkey)
     *ret_preserve_ssh_hostkey = preserve_ssh_hostkey;
 
+  error = econf_getBoolValue(key_file, NULL, "rdii.autoinstall", &autoinstall);
+  if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+    return error;
+  if (error == ECONF_SUCCESS && ret_autoinstall)
+    *ret_autoinstall = autoinstall;
+
+  error = econf_getStringValue(key_file, NULL, "rdii.autoinstall.finish", &autoinstall_finish);
+  if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+    return error;
+  if (strcmp(autoinstall_finish, "reboot") != 0 &&
+      strcmp(autoinstall_finish, "pweroff") != 0 &&
+      strcmp(autoinstall_finish, "manual") != 0)
+    MSG_WARN("No valid value for rdii.autoinstall.finish: %s", autoinstall_finish);
+
   if (ret_device)
     *ret_device = TAKE_PTR(device);
   if (ret_mdraid)
@@ -101,6 +119,8 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
     *ret_keymap = TAKE_PTR(keymap);
   if (ret_download_server)
     *ret_download_server = TAKE_PTR(download_server);
+  if (ret_autoinstall_finish)
+    *ret_autoinstall_finish = TAKE_PTR(autoinstall_finish);
 
   return ECONF_SUCCESS;
 }
@@ -212,7 +232,9 @@ main(int argc, char **argv)
   _cleanup_free_ char *mdraid = NULL;
   _cleanup_free_ char *keymap = NULL;
   _cleanup_free_ char *download_server = NULL;
+  _cleanup_free_ char *autoinstall_finish = NULL;
   bool preserve_ssh_hostkey = false;
+  bool autoinstall = false;
   int r;
   econf_err conf_err;
 
@@ -277,7 +299,8 @@ main(int argc, char **argv)
   init_ncurses(TITLE);
 
   conf_err = read_config(rdii_config, &device, &mdraid, &image, &image1, &image2, &keymap,
-			 &download_server, &preserve_ssh_hostkey);
+			 &download_server, &preserve_ssh_hostkey, &autoinstall,
+			 &autoinstall_finish);
   if (conf_err != ECONF_SUCCESS)
     {
       show_error_popup("Failed to read config file:",
@@ -314,7 +337,10 @@ main(int argc, char **argv)
   // we cannot make rdii_tmp_dir_cleanup global because of _cleanup_
   rdii_tmp_dir = rdii_tmp_dir_cleanup;
 
-  r = rdii_menu(TITLE, image, image1, image2, device, mdraid, keymap, preserve_ssh_hostkey);
+  if (!autoinstall || !rdii_autoinstall(image, device, mdraid, preserve_ssh_hostkey,
+					autoinstall_finish, &r))
+    r = rdii_menu(TITLE, image, image1, image2, device, mdraid, keymap,
+		  preserve_ssh_hostkey);
 
   MSG_INFO("rdi-installer stopped (retval=%i)", r);
 

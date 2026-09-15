@@ -17,6 +17,7 @@ extern int show_sysinfo(void);
 extern bool verify_signature(const char *file, char *key, char **error);
 extern int run_installation(const char *url, const char *device,
 		            const char *mdraid, bool preserve_ssh_hostkey);
+extern int show_post_menu(void);
 extern int rdii_menu(const char *title, const char *image,
 		     const char *image1, const char *image2,
 		     const char *device, const char *mdraid, const char *keymap,

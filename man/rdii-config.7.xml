@@ -99,6 +99,40 @@
           </para>
         </listitem>
       </varlistentry>
+      <varlistentry>
+        <term><literal>rdii.autoinstall</literal></term>
+        <listitem>
+          <para>
+            <emphasis>Format:</emphasis> true/false/yes/no/1/0
+          </para>
+          <para>
+            Starts the installation automatically, without user
+            interaction, as soon as a valid <literal>rdii.device</literal>
+            and installation image (<literal>rdii.url</literal>) are
+            defined. If either the device or the image is missing or
+            invalid, <command>rdi-installer</command> falls back to
+            the normal interactive menu.
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term><literal>rdii.autoinstall.finish</literal></term>
+        <listitem>
+          <para>
+            <emphasis>Format:</emphasis> manual/reboot/poweroff
+          </para>
+          <para>
+            Controls what happens after an automatic installation
+            (<literal>rdii.autoinstall</literal>) finishes.
+            <literal>manual</literal> (the default) shows the normal
+            post-installation menu; <literal>reboot</literal> and
+            <literal>poweroff</literal> reboot or power off the
+            machine directly. If that command fails, or the
+            installation itself fails, <command>rdi-installer</command>
+            falls back to the normal interactive menu.
+          </para>
+        </listitem>
+      </varlistentry>
     </variablelist>
   </refsect1>
 
