@@ -41,14 +41,13 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
   _cleanup_free_ char *url2 = NULL;
   _cleanup_free_ char *keymap = NULL;
   _cleanup_free_ char *download_server = NULL;
-  _cleanup_free_ char *autoinstall_finish = "reboot";
+  _cleanup_free_ char *autoinstall_finish = NULL;
   bool preserve_ssh_hostkey = false;
   bool autoinstall = false;
   econf_err error;
 
   error = econf_readFile(&key_file, config,
 			 "=", "#");
-
   if (error == ECONF_NOFILE)
     {
       MSG_WARN("No rdi-installer configuration file found");
@@ -104,6 +103,39 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
       strcmp(autoinstall_finish, "pweroff") != 0 &&
       strcmp(autoinstall_finish, "manual") != 0)
     MSG_WARN("No valid value for rdii.autoinstall.finish: %s", autoinstall_finish);
+
+  // These settings only apply to an automatic installation; in the normal
+  // interactive menu, popups always keep requiring explicit confirmation.
+  if (autoinstall)
+    {
+      bool confirm_info_cfg = confirm_infos;
+      error = econf_getBoolValue(key_file, NULL, "rdii.autoinstall.confirm_info", &confirm_info_cfg);
+      if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+	return error;
+      if (error == ECONF_SUCCESS)
+	confirm_infos = confirm_info_cfg;
+
+      bool confirm_warnings_cfg = confirm_warnings;
+      error = econf_getBoolValue(key_file, NULL, "rdii.autoinstall.confirm_warnings", &confirm_warnings_cfg);
+      if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+	return error;
+      if (error == ECONF_SUCCESS)
+	confirm_warnings = confirm_warnings_cfg;
+
+      bool confirm_errors_cfg = confirm_errors;
+      error = econf_getBoolValue(key_file, NULL, "rdii.autoinstall.confirm_errors", &confirm_errors_cfg);
+      if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+	return error;
+      if (error == ECONF_SUCCESS)
+	confirm_errors = confirm_errors_cfg;
+
+      int32_t popup_timeout_cfg = popup_timeout;
+      error = econf_getIntValue(key_file, NULL, "rdii.autoinstall.popup_timeout", &popup_timeout_cfg);
+      if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
+	return error;
+      if (error == ECONF_SUCCESS)
+	popup_timeout = popup_timeout_cfg;
+    }
 
   if (ret_device)
     *ret_device = TAKE_PTR(device);
