@@ -109,7 +109,7 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
   if (autoinstall)
     {
       bool confirm_info_cfg = confirm_infos;
-      error = econf_getBoolValue(key_file, NULL, "rdii.autoinstall.confirm_info", &confirm_info_cfg);
+      error = econf_getBoolValue(key_file, NULL, "rdii.autoinstall.confirm_infos", &confirm_info_cfg);
       if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
 	return error;
       if (error == ECONF_SUCCESS)

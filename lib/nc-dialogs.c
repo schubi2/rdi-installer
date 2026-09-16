@@ -17,7 +17,7 @@
 static const char *header_title = NULL;
 
 // Confirmation and timeout behaviour for the popups below, configurable via
-// rdii.autoinstall.confirm_info / confirm_warnings / confirm_errors /
+// rdii.autoinstall.confirm_infos / confirm_warnings / confirm_errors /
 // popup_timeout. Defaults reproduce the previous, purely interactive
 // behaviour: every popup is shown and blocks until the user responds.
 bool confirm_infos = true;

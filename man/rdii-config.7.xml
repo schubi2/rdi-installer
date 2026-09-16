@@ -134,7 +134,7 @@
         </listitem>
       </varlistentry>
       <varlistentry>
-        <term><literal>rdii.autoinstall.confirm_info</literal></term>
+        <term><literal>rdii.autoinstall.confirm_infos</literal></term>
         <listitem>
           <para>
             <emphasis>Format:</emphasis> true/false/yes/no/1/0
@@ -213,7 +213,7 @@
             Default: <literal>0</literal>. Number of seconds after
             which a popup is automatically dismissed, but only for
             popups whose corresponding
-            <literal>rdii.autoinstall.confirm_info</literal>,
+            <literal>rdii.autoinstall.confirm_infos</literal>,
             <literal>rdii.autoinstall.confirm_warnings</literal> or
             <literal>rdii.autoinstall.confirm_errors</literal> setting
             is <literal>false</literal>. Popups that still require

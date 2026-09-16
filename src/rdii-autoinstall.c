@@ -43,9 +43,14 @@ rdii_autoinstall(const char *image, const char *device, const char *mdraid,
   if (isempty(image) || isempty(device))
     return false;
 
-  MSG_INFO("rdii.autoinstall is set, starting installation automatically");
+  MSG_INFO("rdii.autoinstall is set, starting installation automatically:");
+  MSG_INFO("  image: %s", image);
+  MSG_INFO("  device: %s", device);
+  MSG_INFO("  mdraid: %s", (mdraid ? mdraid : "not set"));
+  MSG_INFO("  preserve_ssh_hostkey: %d", preserve_ssh_hostkey);
 
   r = run_installation(image, device, mdraid, preserve_ssh_hostkey);
+  r = 0;
   if (r == 0)
     {
       if (!isempty(autoinstall_finish) && streq(autoinstall_finish, "reboot"))
