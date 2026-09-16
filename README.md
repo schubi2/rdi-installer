@@ -63,6 +63,10 @@ The options can be provided either via the kernel cmdline during boot or with a 
 | rdii.download_server | http url | Base URL from where raw disk images presented in a list to select from can be downloaded |
 | rdii.autoinstall | true/false/yes/no/1/0 | Starts the installation automatically, without user interaction, once a valid `rdii.url` and `rdii.device` are defined |
 | rdii.autoinstall.finish | manual/reboot/poweroff | What to do after an automatic installation finishes. `manual` (default) shows the normal post-installation menu; `reboot`/`poweroff` reboot or power off the machine directly |
+| rdii.autoinstall.confirm_infos | true/false/yes/no/1/0 | Only takes effect if `rdii.autoinstall` is `true`. Default `true`: informational popups are always shown. If `false` and `rdii.autoinstall.popup_timeout` is greater than `0`, the popup is automatically dismissed after that many seconds instead of waiting for a keypress |
+| rdii.autoinstall.confirm_warnings | true/false/yes/no/1/0 | Only takes effect if `rdii.autoinstall` is `true`. Default `true`: warning popups that ask for confirmation are always shown. If `false` and `rdii.autoinstall.popup_timeout` is greater than `0`, the popup is automatically dismissed after that many seconds and treated as if answered with `YES`, instead of waiting for a keypress |
+| rdii.autoinstall.confirm_errors | true/false/yes/no/1/0 | Only takes effect if `rdii.autoinstall` is `true`. Default `true`: error popups are always shown. If `false` and `rdii.autoinstall.popup_timeout` is greater than `0`, the popup is automatically dismissed after that many seconds instead of waiting for a keypress |
+| rdii.autoinstall.popup_timeout | integer (seconds) | Only takes effect if `rdii.autoinstall` is `true`. Default `0` (disabled). Number of seconds after which a popup is automatically dismissed, but only for popups whose corresponding `confirm_infos`/`confirm_warnings`/`confirm_errors` setting is `false`. Popups that still require confirmation always wait indefinitely for a keypress |
 
 With `rdii.url1` and `rdii.url2` additional images can be specified. At the start of `rdi-installer`, the user has to selected the one he wants to install.
 
@@ -86,6 +90,8 @@ The `rdii.autoinstall` option starts the installation immediately, without requi
 * `poweroff`: power off the machine directly.
 
 If the reboot/poweroff command fails, or the installation itself fails, `rdi-installer` falls back to the normal interactive menu.
+
+By default, informational, warning and error popups still wait for a keypress even during an automatic installation. `rdii.autoinstall.confirm_infos`, `rdii.autoinstall.confirm_warnings` and `rdii.autoinstall.confirm_errors` (each default `true`) control this per popup type; setting one to `false` allows its popups to be dismissed automatically after `rdii.autoinstall.popup_timeout` seconds (default `0`, meaning disabled) instead of waiting for user input. Warning popups dismissed this way are treated as if answered with `YES`. Popups whose setting is still `true` always wait indefinitely, regardless of `rdii.autoinstall.popup_timeout`.
 
 ### MD Raid (Raid 1)
 
