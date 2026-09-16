@@ -99,8 +99,9 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
   error = econf_getStringValue(key_file, NULL, "rdii.autoinstall.finish", &autoinstall_finish);
   if (error != ECONF_SUCCESS && error != ECONF_NOKEY)
     return error;
-  if (strcmp(autoinstall_finish, "reboot") != 0 &&
-      strcmp(autoinstall_finish, "pweroff") != 0 &&
+  if (autoinstall_finish &&
+      strcmp(autoinstall_finish, "reboot") != 0 &&
+      strcmp(autoinstall_finish, "poweroff") != 0 &&
       strcmp(autoinstall_finish, "manual") != 0)
     MSG_WARN("No valid value for rdii.autoinstall.finish: %s", autoinstall_finish);
 
@@ -339,12 +340,18 @@ main(int argc, char **argv)
                        econf_errString(conf_err), NULL);
     }
 
-  validate_image_url(&image);
-  validate_image_url(&image1);
-  validate_image_url(&image2);
+  // Only needed to decide whether an automatic installation can start;
+  // the interactive menu validates URLs/devices lazily as the user
+  // selects or enters them, to avoid blocking on network I/O at startup.
+  if (autoinstall)
+    {
+      validate_image_url(&image);
+      validate_image_url(&image1);
+      validate_image_url(&image2);
 
-  validate_device(&device);
-  validate_device(&mdraid);
+      validate_device(&device);
+      validate_device(&mdraid);
+    }
 
   if (download_server)
     rdii_download_server = download_server;

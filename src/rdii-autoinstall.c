@@ -50,7 +50,6 @@ rdii_autoinstall(const char *image, const char *device, const char *mdraid,
   MSG_INFO("  preserve_ssh_hostkey: %d", preserve_ssh_hostkey);
 
   r = run_installation(image, device, mdraid, preserve_ssh_hostkey);
-  r = 0;
   if (r == 0)
     {
       if (!isempty(autoinstall_finish) && streq(autoinstall_finish, "reboot"))
