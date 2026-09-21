@@ -204,7 +204,7 @@ show_warning_popup(const char *headline,
       int key = wgetch(win);
       if (key == ERR) // popup_timeout expired without any input
 	{
-	  choice = 0; // Confirmation not required: proceed as if YES was chosen
+	  choice = 1; // Confirmation not required: default to NO for safety
 	  break;
 	}
       else if (key == KEY_LEFT || key == KEY_RIGHT || key == '\t')
