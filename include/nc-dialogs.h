@@ -13,6 +13,12 @@
 #define CP_FOOTER 6
 #define CP_WARNING 7
 
+
+extern bool confirm_infos;
+extern bool confirm_warnings;
+extern bool confirm_errors;
+extern int popup_timeout;
+
 #define KEY_F1	(KEY_F0+(1))
 #define SELECTION true
 #define NO_SELECTION false

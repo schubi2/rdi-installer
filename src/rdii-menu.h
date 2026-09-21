@@ -13,10 +13,12 @@ extern int select_target_device(uint64_t minsize, char **device,
                                 const char *help_text);
 extern int select_mdraid_devices(uint64_t minsize, char **device1, char **device2);
 extern void select_installation_source(const char *prefill, char **ret);
+extern bool url_is_valid(const char *url, const char **error);
 extern int show_sysinfo(void);
 extern bool verify_signature(const char *file, char *key, char **error);
 extern int run_installation(const char *url, const char *device,
 		            const char *mdraid, bool preserve_ssh_hostkey);
+extern int show_post_menu(void);
 extern int rdii_menu(const char *title, const char *image,
 		     const char *image1, const char *image2,
 		     const char *device, const char *mdraid, const char *keymap,
