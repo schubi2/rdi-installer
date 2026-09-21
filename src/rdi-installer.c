@@ -105,6 +105,26 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
       strcmp(autoinstall_finish, "manual") != 0)
     MSG_WARN("No valid value for rdii.autoinstall.finish: %s", autoinstall_finish);
 
+  // Propagate everything parsed so far before reading the autoinstall.*
+  // settings below: a real econf error there must not discard config
+  // that was already successfully read.
+  if (ret_device)
+    *ret_device = TAKE_PTR(device);
+  if (ret_mdraid)
+    *ret_mdraid = TAKE_PTR(mdraid);
+  if (ret_url)
+    *ret_url = TAKE_PTR(url);
+  if (ret_url1)
+    *ret_url1 = TAKE_PTR(url1);
+  if (ret_url2)
+    *ret_url2 = TAKE_PTR(url2);
+  if (ret_keymap)
+    *ret_keymap = TAKE_PTR(keymap);
+  if (ret_download_server)
+    *ret_download_server = TAKE_PTR(download_server);
+  if (ret_autoinstall_finish)
+    *ret_autoinstall_finish = TAKE_PTR(autoinstall_finish);
+
   // These settings only apply to an automatic installation; in the normal
   // interactive menu, popups always keep requiring explicit confirmation.
   if (autoinstall)
@@ -137,23 +157,6 @@ read_config(const char *config, char **ret_device, char **ret_mdraid,
       if (error == ECONF_SUCCESS)
 	popup_timeout = popup_timeout_cfg;
     }
-
-  if (ret_device)
-    *ret_device = TAKE_PTR(device);
-  if (ret_mdraid)
-    *ret_mdraid = TAKE_PTR(mdraid);
-  if (ret_url)
-    *ret_url = TAKE_PTR(url);
-  if (ret_url1)
-    *ret_url1 = TAKE_PTR(url1);
-  if (ret_url2)
-    *ret_url2 = TAKE_PTR(url2);
-  if (ret_keymap)
-    *ret_keymap = TAKE_PTR(keymap);
-  if (ret_download_server)
-    *ret_download_server = TAKE_PTR(download_server);
-  if (ret_autoinstall_finish)
-    *ret_autoinstall_finish = TAKE_PTR(autoinstall_finish);
 
   return ECONF_SUCCESS;
 }

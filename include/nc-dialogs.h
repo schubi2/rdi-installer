@@ -13,7 +13,7 @@
 #define CP_FOOTER 6
 #define CP_WARNING 7
 
-
+// For autoinstallation
 extern bool confirm_infos;
 extern bool confirm_warnings;
 extern bool confirm_errors;
