@@ -248,7 +248,7 @@ static const char *main_menu_help_text =
   "MD Raid (Raid 1)\n"
   "----------------\n"
   "During installation a MD Raid can be created and used as device for the image. If rdii.mdraid is set, rdii.device is the first "
-  "device of the MD Raid and rdii.mdraid is the second device. rdi-intaller does not make any modifications to the image, it needs "
+  "device of the MD Raid and rdii.mdraid is the second device. rdi-installer does not make any modifications to the image, it needs "
   " to contain already everything to assembly the MD device during boot.\n\n"
   "Configuration File\n"
   "------------------\n"

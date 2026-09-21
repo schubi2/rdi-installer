@@ -25,7 +25,7 @@ select_mdraid_devices(uint64_t minsize, char **device1, char **device2)
   int count;
   int r;
 
-  const char *help_text = "During installation a MD Raid (Raid 1) can be created and used as device for the image. You have to set the first and the second device. rdi-intaller does not make any modifications to the image, it needs to contain already everything to assembly the MD device during boot.";
+  const char *help_text = "During installation a MD Raid (Raid 1) can be created and used as device for the image. You have to set the first and the second device. rdi-installer does not make any modifications to the image, it needs to contain already everything to assembly the MD device during boot.";
 
   r = get_devices(&disk, &count);
   if (r < 0)
