@@ -544,8 +544,8 @@ choose_entry(int row, const char *options[], int num_options, int start,
       int max_y, max_x;
       getmaxyx(stdscr, max_y, max_x);
 
-      // Reserve space at bottom (e.g. 2 lines for footer/status)
-      int max_visible = max_y - row - 2;
+      // Reserve the last line for the footer drawn by print_global_header_footer()
+      int max_visible = max_y - row - 1;
       if (max_visible < 1) max_visible = 1;
 
       // Adjust scroll offset to keep 'selected' visible
@@ -553,6 +553,11 @@ choose_entry(int row, const char *options[], int num_options, int start,
         scroll_offset = selected;
       else if (selected >= scroll_offset + max_visible)
         scroll_offset = selected - max_visible + 1;
+
+      // Leave room for the scrollbar column so long entries can't overwrite it
+      bool show_scrollbar = num_options > max_visible;
+      int text_width = (show_scrollbar ? max_x - 2 : max_x) - 2 - 3;
+      if (text_width < 1) text_width = 1;
 
       // Render visible options
       for (int i = 0; i < max_visible; i++)
@@ -569,20 +574,20 @@ choose_entry(int row, const char *options[], int num_options, int start,
               if (item_idx == selected)
                 {
                   attron(COLOR_PAIR(CP_SELECTED) | A_BOLD);
-                  mvprintw(y, 2, "-> %s", options[item_idx]);
+                  mvprintw(y, 2, "-> %.*s", text_width, options[item_idx]);
                   attroff(COLOR_PAIR(CP_SELECTED) | A_BOLD);
                 }
               else
                 {
                   attron(COLOR_PAIR(CP_UNSELECTED));
-                  mvprintw(y, 2, "   %s", options[item_idx]);
+                  mvprintw(y, 2, "   %.*s", text_width, options[item_idx]);
                   attroff(COLOR_PAIR(CP_UNSELECTED));
                 }
             }
         }
 
       // Render scrollbar on right margin if list exceeds viewport
-      if (num_options > max_visible)
+      if (show_scrollbar)
         {
           int sb_x = max_x - 2;
           int thumb_pos = (selected * (max_visible - 1)) / (num_options - 1);
