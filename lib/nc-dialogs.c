@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <wchar.h>
+#include <wctype.h>
 
 #include "basics.h"
 #include "logger.h"
@@ -54,7 +55,7 @@ init_colors(void)
 }
 
 void
-print_global_header_footer(const char *addkeys)
+print_global_header_footer(const char *addkeys, const bool selection)
 {
   MSG_FUNC("addkeys='%s'", strempty(addkeys));
 
@@ -66,7 +67,8 @@ print_global_header_footer(const char *addkeys)
   attroff(COLOR_PAIR(CP_HEADER) | A_BOLD);
 
   // Draw Footer
-  const char *footer_text = "Up/Down: Navigate | Enter: Select | ESC: Abort/Quit";
+  const char *footer_text = (selection ? "Up/Down: Navigate | Enter: Select | ESC: Abort/Quit" :
+                             "ESC: Abort/Quit");
   attron(COLOR_PAIR(CP_FOOTER) | A_REVERSE);
   mvhline(LINES - 1, 0, ' ', COLS);
   if (addkeys)
@@ -335,14 +337,343 @@ show_info_popup(const char *headline, const char *descr)
   delwin(win);
   refresh();
 }
+static int
+clamp_scroll_offset(int offset, int line_count, int text_win_h)
+{
+  int max_offset = line_count - text_win_h;
+  if (max_offset < 0) max_offset = 0;
+  if (offset > max_offset) offset = max_offset;
+  if (offset < 0) offset = 0;
+  return offset;
+}
+
+// Appends a wrapped line (given as a slice of a wide-character string, so
+// multibyte characters can never be split across two lines) to a growable
+// array of multibyte C strings.  Returns 0 and leaves *lines_ptr/*cap_ptr
+// untouched on allocation failure.
+static int
+append_wrapped_line(char ***lines_ptr, int *cap_ptr, int *count_ptr,
+                     const wchar_t *wstr, size_t wlen)
+{
+  if (*count_ptr == *cap_ptr)
+    {
+      int new_cap = *cap_ptr * 2;
+      char **grown = realloc(*lines_ptr, sizeof(char *) * new_cap);
+      if (!grown)
+        return 0;
+      *lines_ptr = grown;
+      *cap_ptr = new_cap;
+    }
+
+  wchar_t *wtmp = malloc((wlen + 1) * sizeof(wchar_t));
+  if (!wtmp)
+    return 0;
+  memcpy(wtmp, wstr, wlen * sizeof(wchar_t));
+  wtmp[wlen] = L'\0';
+
+  size_t mb_len = wcstombs(NULL, wtmp, 0);
+  if (mb_len == (size_t)-1)
+    {
+      free(wtmp);
+      return 0;
+    }
+
+  char *mb_buf = malloc(mb_len + 1);
+  if (!mb_buf)
+    {
+      free(wtmp);
+      return 0;
+    }
+  wcstombs(mb_buf, wtmp, mb_len + 1);
+  free(wtmp);
+
+  (*lines_ptr)[*count_ptr] = mb_buf;
+  (*count_ptr)++;
+  return 1;
+}
+
+void show_help_dialog(const char *title, const char *text) {
+  int max_y, max_x;
+  getmaxyx(stdscr, max_y, max_x);
+
+  if (!text)
+    return;
+
+  // Use maximum available width (with a 2-character margin on each side)
+  // and up to 80% screen height for better vertical proportions.
+  int width = max_x - 2;
+  int height = max_y * 0.8;
+
+  // Fallback bounds for smaller terminals
+  if (width < 20) width = max_x;
+  if (height < 8) height = 8;
+  if (height > max_y) height = max_y;
+
+  int start_y = (max_y - height) / 2;
+  int start_x = (max_x - width) / 2;
+
+  int prev_cursor = curs_set(0);
+
+  // Save current mouse mask and enable mouse events
+  mmask_t old_mouse_mask;
+  mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, &old_mouse_mask);
+
+  // Create main window.  The text is rendered into a pad so that
+  // scrolling only has to move the pad's viewport instead of
+  // re-blitting every visible line by hand on each redraw.
+  WINDOW *help_win = newwin(height, width, start_y, start_x);
+  int text_win_h = height - 4;
+  int text_win_w = width - 4;
+  if (text_win_h < 1) text_win_h = 1;
+  if (text_win_w < 1) text_win_w = 1;
+  int text_y = start_y + 2;
+  int text_x = start_x + 2;
+
+  keypad(help_win, TRUE);
+
+  // --- Convert to wide characters first, so word-wrapping below
+  // operates on whole characters and can never split a multibyte
+  // UTF-8 sequence across two lines. ---
+  size_t wtext_len = mbstowcs(NULL, text, 0);
+  wchar_t *wtext = NULL;
+  if (wtext_len == (size_t)-1)
+    {
+      // Invalid sequence for the current locale: fall back to widening
+      // the raw bytes so the text is still shown instead of lost.
+      wtext_len = strlen(text);
+      wtext = malloc((wtext_len + 1) * sizeof(wchar_t));
+      if (wtext)
+        {
+          for (size_t i = 0; i < wtext_len; i++)
+            wtext[i] = (unsigned char)text[i];
+          wtext[wtext_len] = L'\0';
+        }
+    }
+  else
+    {
+      wtext = malloc((wtext_len + 1) * sizeof(wchar_t));
+      if (wtext)
+        mbstowcs(wtext, text, wtext_len + 1);
+    }
+
+  if (!wtext)
+    {
+      MSG_ERROR("show_help_dialog: out of memory converting text");
+      delwin(help_win);
+      mousemask(old_mouse_mask, NULL);
+      curs_set(prev_cursor);
+      return;
+    }
+
+  // --- Line Wrapping Logic ---
+  int lines_cap = 64;
+  char **lines = malloc(sizeof(char *) * lines_cap);
+  int line_count = 0;
+  int oom = (lines == NULL);
+
+  const wchar_t *wptr = wtext;
+  while (!oom && *wptr)
+    {
+      if (*wptr == L'\n')
+        {
+          if (!append_wrapped_line(&lines, &lines_cap, &line_count, L"", 0))
+            oom = 1;
+          else
+            wptr++;
+          continue;
+        }
+
+      int len = 0;
+      int break_point = -1;
+
+      while (wptr[len] && wptr[len] != L'\n' && len < text_win_w)
+        {
+          if (iswspace(wptr[len]))
+            {
+              break_point = len;
+            }
+          len++;
+        }
+
+      if (len == text_win_w && wptr[len] != L'\0' && wptr[len] != L'\n' && break_point > 0)
+        {
+          len = break_point;
+        }
+
+      if (!append_wrapped_line(&lines, &lines_cap, &line_count, wptr, (size_t)len))
+        {
+          oom = 1;
+          continue;
+        }
+
+      wptr += len;
+      if (*wptr == L' ' || *wptr == L'\n')
+        {
+          wptr++;
+        }
+    }
+
+  free(wtext);
+
+  if (oom)
+    {
+      MSG_ERROR("show_help_dialog: out of memory wrapping text");
+      for (int i = 0; i < line_count; i++)
+        free(lines[i]);
+      free(lines);
+      delwin(help_win);
+      mousemask(old_mouse_mask, NULL);
+      curs_set(prev_cursor);
+      return;
+    }
+
+  // Render the wrapped lines into a pad once; the event loop below
+  // only ever changes which slice of the pad is visible.
+  int pad_h = line_count > text_win_h ? line_count : text_win_h;
+  WINDOW *pad = newpad(pad_h, text_win_w);
+  if (!pad)
+    {
+      MSG_ERROR("show_help_dialog: newpad() failed");
+      for (int i = 0; i < line_count; i++)
+        free(lines[i]);
+      free(lines);
+      delwin(help_win);
+      mousemask(old_mouse_mask, NULL);
+      curs_set(prev_cursor);
+      return;
+    }
+
+  for (int i = 0; i < line_count; i++)
+    {
+      mvwprintw(pad, i, 0, "%s", lines[i]);
+      free(lines[i]);
+    }
+  free(lines);
+
+  int scroll_offset = 0;
+  int ch;
+
+  // --- Main Event Loop ---
+  while (1)
+    {
+      werase(help_win);
+      box(help_win, 0, 0);
+
+      if (title)
+        {
+          int title_x = (width - (int)strlen(title) - 2) / 2;
+          if (title_x < 0) title_x = 0;
+          mvwprintw(help_win, 0, title_x, " %s ", title);
+        }
+
+      const char *footer = (line_count > text_win_h) ? " Up/Down/Wheel: Scroll | Press any key to exit " :
+        "  Press any key to exit ";
+
+      int footer_x = (width - (int)strlen(footer)) / 2;
+      if (footer_x < 0) footer_x = 0;
+      mvwprintw(help_win, height - 1, footer_x, "%s", footer);
+
+      // Draw scroll bar if text overflows window height
+      if (line_count > text_win_h)
+        {
+          int track_height = text_win_h;
+          int bar_size = (track_height * text_win_h) / line_count;
+          if (bar_size < 1) bar_size = 1;
+
+          int max_offset = line_count - text_win_h;
+          int bar_pos = (scroll_offset * (track_height - bar_size)) / max_offset;
+
+          // Draw track
+          for (int y = 0; y < track_height; y++)
+            {
+              mvwaddch(help_win, 2 + y, width - 1, ACS_VLINE);
+            }
+
+          // Draw scroll bar handle
+          wattron(help_win, A_REVERSE);
+          for (int y = 0; y < bar_size; y++)
+            {
+              mvwaddch(help_win, 2 + bar_pos + y, width - 1, ' ');
+            }
+          wattroff(help_win, A_REVERSE);
+        }
+
+      // Stage the frame (border/title/footer/scrollbar) first, then
+      // the pad's visible slice on top, so a single doupdate() paints
+      // both without the blank interior of help_win clobbering the pad.
+      wnoutrefresh(help_win);
+      pnoutrefresh(pad, scroll_offset, 0, text_y, text_x,
+                   text_y + text_win_h - 1, text_x + text_win_w - 1);
+      doupdate();
+
+      // Input processing
+      ch = wgetch(help_win);
+
+      if (ch == KEY_MOUSE)
+        {
+          MEVENT event;
+          if (getmouse(&event) == OK)
+            {
+              // Mouse Wheel Up
+              if (event.bstate & BUTTON4_PRESSED)
+                {
+                  scroll_offset = clamp_scroll_offset(scroll_offset - 3, line_count, text_win_h);
+                }
+              // Mouse Wheel Down
+              else if (event.bstate & BUTTON5_PRESSED)
+                {
+                  scroll_offset = clamp_scroll_offset(scroll_offset + 3, line_count, text_win_h);
+                }
+            }
+        }
+      else if (ch == KEY_UP)
+        {
+          scroll_offset = clamp_scroll_offset(scroll_offset - 1, line_count, text_win_h);
+        }
+      else if (ch == KEY_DOWN)
+        {
+          scroll_offset = clamp_scroll_offset(scroll_offset + 1, line_count, text_win_h);
+        }
+      else if (ch == KEY_NPAGE)
+        { // Page Down
+          scroll_offset = clamp_scroll_offset(scroll_offset + text_win_h, line_count, text_win_h);
+        }
+      else if (ch == KEY_PPAGE)
+        { // Page Up
+          scroll_offset = clamp_scroll_offset(scroll_offset - text_win_h, line_count, text_win_h);
+        }
+      else
+        {
+          // Exit loop on any non-navigation key press
+          break;
+        }
+    }
+
+  delwin(pad);
+
+  // Restore previous mouse state
+  mousemask(old_mouse_mask, NULL);
+
+  // Cleanup ncurses resources
+  delwin(help_win);
+
+  curs_set(prev_cursor);
+  touchwin(stdscr);
+  refresh();
+}
 
 int
-choose_entry(int row, const char *options[], int num_options, int start)
+choose_entry(int row, const char *options[], int num_options, int start,
+             const char *title, const char *help_text)
 {
   int selected = start;
 
-  MSG_FUNC("row=%i, options[0]='%s', num_options=%i, start=%i",
-	   row, options[0], num_options, start);
+  MSG_FUNC("row=%i, options[0]='%s', num_options=%i, start=%i, title=%s",
+           row, options[0], num_options, start, title);
+
+  print_global_header_footer((help_text ? "F1: Help" : NULL),
+                             SELECTION);
+  print_title((title ? title : ""));
 
   while (1)
     {
@@ -376,6 +707,8 @@ choose_entry(int row, const char *options[], int num_options, int start)
 	selected = (selected - 1 + num_options) % num_options;
       else if (ch == KEY_DOWN)
 	selected = (selected + 1) % num_options;
+      else if (ch == KEY_F1)
+        show_help_dialog(title, help_text);
       else if (ch == '\n' || ch == KEY_ENTER)
 	{
 	  MSG_INFO("Selected entry %i", selected);
