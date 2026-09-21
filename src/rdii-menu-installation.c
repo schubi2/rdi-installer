@@ -102,7 +102,10 @@ fix_partition_table(const char *device)
         show_error_popup("Adjusting partition table to real disk size failed.",
 			 "sgdisk failed with:", strerror(r));
 
-      keywait(8, 0, NULL, 0);
+      // Only auto-dismiss when confirmation isn't required; otherwise wait
+      // indefinitely for an explicit answer, regardless of popup_timeout.
+      int wait_sec = (!confirm_errors && popup_timeout > 0) ? popup_timeout : 0;
+      keywait(8, 0, NULL, wait_sec);
       return -ECHILD;
     }
   return 0;
@@ -225,7 +228,12 @@ wait_for_finish(pid_t pids[], const int pids_size)
     }
   reset_prog_mode();
   if (first_error)
-    keywait(LINES-3, 0, NULL, 0);
+    {
+      // Only auto-dismiss when confirmation isn't required; otherwise wait
+      // indefinitely for an explicit answer, regardless of popup_timeout.
+      int wait_sec = (!confirm_errors && popup_timeout > 0) ? popup_timeout : 0;
+      keywait(LINES-3, 0, NULL, wait_sec);
+    }
 
   return -first_error;
 }
