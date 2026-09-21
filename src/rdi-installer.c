@@ -346,11 +346,11 @@ main(int argc, char **argv)
   // Only needed to decide whether an automatic installation can start;
   // the interactive menu validates URLs/devices lazily as the user
   // selects or enters them, to avoid blocking on network I/O at startup.
+  // image1/image2 are only used by the interactive select_image() menu,
+  // so autoinstall doesn't need to validate them here.
   if (autoinstall)
     {
       validate_image_url(&image);
-      validate_image_url(&image1);
-      validate_image_url(&image2);
 
       validate_device(&device);
       validate_device(&mdraid);
