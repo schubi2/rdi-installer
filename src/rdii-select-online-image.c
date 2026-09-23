@@ -20,25 +20,63 @@
 
 // Data structure for the architecture-specific items
 typedef struct {
-    const char *name;
-    const char *arch; // "x86", "arm64", "s390"
-} Item;
+    char *name;
+    char *arch; // "x86", "arm64", "s390"
+} Image;
 
-// Sample items list
-Item ALL_ITEMS[] = {
-    {"GCC Compiler Toolchain", "x86"},
-    {"Clang LLVM Engine",     "x86"},
-    {"QEMU x86 System Emulator", "x86"},
-    {"GCC ARM Cross-Compiler", "arm64"},
-    {"GDB Debugger (ARM64)",   "arm64"},
-    {"ARM64 Kernel Image",     "arm64"},
-    {"Universal Utility Package", "all"},
-    {"System Log Viewer",       "all"},
-    {NULL, NULL}
-};
+typedef struct {
+    Image *data;
+    size_t size;
+    size_t capacity;
+} ImageList;
+
+// Initialize the list
+static int init_list(ImageList *list, size_t initial_capacity) {
+    list->size = 0;
+    list->capacity = initial_capacity;
+    list->data = malloc(list->capacity * sizeof(Image));
+    if (!list->data) {
+        perror("Failed to allocate image list");
+        return -ENOMEM;
+    }
+    return 0;
+}
+
+// Add an element to the list (allocating memory for strings)
+static int add_image(ImageList *list, const char *name, const char *arch) {
+    // Resize the array if it reaches capacity
+    if (list->size >= list->capacity) {
+        list->capacity *= 2;
+        Image *new_data = realloc(list->data, list->capacity * sizeof(Image));
+        if (!new_data) {
+            perror("Failed to reallocate image list");
+            return -ENOMEM;            
+        }
+        list->data = new_data;
+    }
+
+    // Allocate memory and copy string content using strdup
+    list->data[list->size].name = strdup(name);
+    list->data[list->size].arch = strdup(arch);
+
+    list->size++;
+    return 0;
+}
+
+// Free all allocated memory within the list
+static void free_list(ImageList *list) {
+    for (size_t i = 0; i < list->size; i++) {
+        free(list->data[i].name);
+        free(list->data[i].arch);
+    }
+    free(list->data);
+    list->data = NULL;
+    list->size = 0;
+    list->capacity = 0;
+}
 
 const char *ARCH_OPTIONS[] = {
-    "all architectures",
+    "all",
     "x86",
     "arm64",
     NULL
@@ -71,14 +109,12 @@ bool is_supported_image(const char *name)
   Returns the number of found entries (>= 0), or a negative errno code.
 */
 static int
-parse_sha256sums(const char *path, char ***ret_names)
+parse_sha256sums(const char *path, ImageList *ret_images)
 {
   _cleanup_fclose_ FILE *fp = NULL;
   _cleanup_free_ char *line = NULL;
   size_t linecap = 0;
   ssize_t linelen;
-  char **names = NULL;
-  int capacity = 0;
   int count = 0;
 
   MSG_FUNC("path='%s'", path);
@@ -103,37 +139,76 @@ parse_sha256sums(const char *path, char ***ret_names)
 
       if (isempty(name) || !is_supported_image(name))
 	continue;
-
-      if (count >= capacity)
-	{
-	  capacity = capacity ? capacity * 2 : 16;
-	  char **new_names = realloc(names, capacity * sizeof(char *));
-	  if (!new_names)
-	    {
-	      for (int i = 0; i < count; i++)
-		free(names[i]);
-	      free(names);
-	      return -ENOMEM;
-	    }
-	  names = new_names;
-	}
-
-      names[count] = strdup(name);
-      if (!names[count])
-	{
-	  for (int i = 0; i < count; i++)
-	    free(names[i]);
-	  free(names);
-	  return -ENOMEM;
-	}
-      count++;
-    }
-
-  *ret_names = names;
+      int ret = add_image(ret_images, name, "x86");
+      if (ret == 0)
+        count++;
+      else
+        return ret;
+    }          
 
   MSG_INFO("Found %i supported image(s) in '%s'", count, path);
 
   return count;
+}
+
+static char *choose_image(ImageList *image_list, const char *title)
+{
+  size_t selected = 0;
+  const char *help_text = "Select raw disk image which has to be installed on the target system.\n"
+    "The name of the default download server can be changed by the value of rdii.download_server, set "
+    "by the kernel cmdline during boot or by a configuration file.\n";
+  
+
+  MSG_FUNC("number of images=%i", image_list->size);
+
+  print_global_header_footer("F1: Help", SELECTION);
+  print_title((title ? title : ""));
+
+  while (1)
+    {
+      for (size_t i = 0; i < image_list->size; i++)
+	{
+	  int y = 4 + i;
+
+	  if (i == selected)
+	    {
+	      attron(COLOR_PAIR(CP_SELECTED) | A_BOLD);
+	      mvprintw(y, 2, "-> %s", image_list->data[i].name);
+	      attroff(COLOR_PAIR(CP_SELECTED) | A_BOLD);
+	    }
+	  else
+	    {
+	      attron(COLOR_PAIR(CP_UNSELECTED));
+	      mvprintw(y, 2, "   %s", image_list->data[i].name);
+	      attroff(COLOR_PAIR(CP_UNSELECTED));
+	    }
+	}
+
+      refresh();
+
+      int ch = getch();
+      if (ch == 27) // 27 is the ASCII code for ESC
+	{
+	  MSG_INFO("Canceld with ESC");
+	  return NULL;
+	}
+      else if (ch == KEY_UP)
+	selected = (selected - 1 + image_list->size) % image_list->size;
+      else if (ch == KEY_DOWN)
+	selected = (selected + 1) % image_list->size;
+      else if (ch == KEY_F1)
+        show_help_dialog(title, help_text);
+      else if (ch == '\n' || ch == KEY_ENTER)
+	{
+	  MSG_INFO("Selected entry %i", selected);
+	  return image_list->data[selected].name;
+	}
+    }
+
+  MSG_ERROR("quit while loop without return!");
+
+  // we should never reach this
+  return NULL;
 }
 
 
@@ -143,12 +218,17 @@ int get_url_from_list(char **ret)
   _cleanup_free_ char *sha256sums_asc_url = NULL;
   _cleanup_free_ char *sha256sums_fn = NULL;
   _cleanup_free_ char *sha256sums_asc_fn = NULL;
-  char **names = NULL;
-  int num_names;
-  int selected;
+  ImageList image_list;
+  int num_images;
+  char *selected_image;
   int r = 0;
 
   MSG_FUNC();
+
+  
+  r = init_list(&image_list, 2);
+  if (r != 0)
+    return r;
 
   if (asprintf(&sha256sums_url, "%s/SHA256SUMS", rdii_download_server) < 0)
     return -ENOMEM;
@@ -194,16 +274,16 @@ int get_url_from_list(char **ret)
 	}
     }
 
-  num_names = parse_sha256sums(sha256sums_fn, &names);
-  if (num_names < 0)
+  num_images = parse_sha256sums(sha256sums_fn, &image_list);
+  if (num_images < 0)
     {
       MSG_ERROR("Error parsing SHA256SUMS file: %s",
-		strerror(-num_names));
+		strerror(-num_images));
       show_error_popup("Error parsing SHA256SUMS file:",
-		       strerror(-num_names), NULL);
-      return num_names;
+		       strerror(-num_images), NULL);
+      return num_images;
     }
-  if (num_names == 0)
+  if (num_images == 0)
     {
       MSG_INFO("No supported images found in %s", rdii_download_server);
       show_error_popup("No supported images found in SHA256SUMS file.",
@@ -212,30 +292,23 @@ int get_url_from_list(char **ret)
     }
 
   _cleanup_free_ char *header = NULL;
-  const char *help_text = "Select raw disk image which has to be installed on the target system.\n"
-    "The name of the default download server can be changed by the value of rdii.download_server, set "
-    "by the kernel cmdline during boot or by a configuration file.\n";
 
   if (asprintf(&header, "Select image from download server %s", rdii_download_server) < 0)
     {
-      for (int i = 0; i < num_names; i++)
-	free(names[i]);
-      free(names);
+      free_list(&image_list);      
       return -ENOMEM;
     }
 
-  selected = choose_entry(4, (const char **)names, num_names, 0,
-                          header, help_text);
-  if (selected < 0)
-    r = selected;
-  else if (asprintf(ret, "%s/%s", rdii_download_server, names[selected]) < 0)
-    r = -ENOMEM;
+  selected_image = choose_image(&image_list, header); 
+  if (selected_image)
+    {
+      if (asprintf(ret, "%s/%s", rdii_download_server, selected_image) < 0)
+        r = -ENOMEM;
+    }
   else
-    r = 0;
+    r = -1;
 
-  for (int i = 0; i < num_names; i++)
-    free(names[i]);
-  free(names);
+  free_list(&image_list);
 
   return r;
 }
