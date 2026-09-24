@@ -35,6 +35,22 @@ typedef struct {
     size_t capacity;
 } ImageList;
 
+const ArchMap arch_map[] = {
+        {".x86-64.", "x86_64"},
+        {".x86_64.", "x86_64"},
+        {".amd64.",  "x86_64"},
+        {".x86.",    "x86"},
+        {".i386.",   "x86"},
+        {".i686.",   "x86"},
+        {".arm64.",  "arm64"},
+        {".aarch64.","arm64"},
+        {".s390x.",  "s390x"},
+        {".s390.",   "s390"}
+    };
+// Dynamic list of options for the filter box
+char **arch_options = NULL;
+int arch_options_count = 0;
+
 // Initialize the list
 static int init_list(ImageList *list, size_t initial_capacity) {
     list->size = 0;
@@ -80,18 +96,14 @@ static void free_list(ImageList *list) {
     list->capacity = 0;
 }
 
-const ArchMap arch_map[] = {
-        {".x86-64.", "x86_64"},
-        {".x86_64.", "x86_64"},
-        {".amd64.",  "x86_64"},
-        {".x86.",    "x86"},
-        {".i386.",   "x86"},
-        {".i686.",   "x86"},
-        {".arm64.",  "arm64"},
-        {".aarch64.","arm64"},
-        {".s390x.",  "s390x"},
-        {".s390.",   "s390"}
-    };
+// Clean up dynamically allocated memory
+static void free_arch_options() {
+    if (!arch_options) return;
+    for (int i = 0; i < arch_options_count; i++) {
+        free(arch_options[i]);
+    }
+    free(arch_options);
+}
 
 bool is_supported_image(const char *name)
 {
@@ -122,6 +134,14 @@ static const char *extract_arch_bounded(const char *filename) {
     return "unknown";
 }
 
+// Helper to check if a string already exists in an array of strings
+static bool string_exists(char **arr, int count, const char *str) {
+    for (int i = 0; i < count; i++) {
+        if (strcmp(arr[i], str) == 0) return true;
+    }
+    return false;
+}
+
 /*
  *  select an image from a remote SHA256SUMS listing
  */
@@ -140,6 +160,10 @@ parse_sha256sums(const char *path, ImageList *ret_images)
   int count = 0;
 
   MSG_FUNC("path='%s'", path);
+
+  arch_options = malloc(sizeof(char *));
+  arch_options[0] = strdup("all");
+  arch_options_count = 1;
 
   fp = fopen(path, "r");
   if (!fp)
@@ -161,9 +185,20 @@ parse_sha256sums(const char *path, ImageList *ret_images)
 
       if (isempty(name) || !is_supported_image(name))
 	continue;
-      int ret = add_image(ret_images, name, extract_arch_bounded(name));
+
+      const char *arch = extract_arch_bounded(name);
+      int ret = add_image(ret_images, name, arch);
       if (ret == 0)
-        count++;
+        {
+          count++;
+          // If it's a new unique architecture, add it
+          if (!string_exists(arch_options, arch_options_count, arch))
+            {
+              arch_options_count++;
+              arch_options = realloc(arch_options, arch_options_count * sizeof(char *));
+              arch_options[arch_options_count - 1] = strdup(arch);
+            }         
+        }
       else
         return ret;
     }          
@@ -336,6 +371,7 @@ int get_url_from_list(char **ret)
     r = -1;
 
   free_list(&image_list);
+  free_arch_options();
 
   return r;
 }
