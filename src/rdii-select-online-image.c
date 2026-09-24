@@ -18,10 +18,15 @@
 #include "rdii-select-online-image.h"
 #include "download.h"
 
+typedef struct {
+    const char *token; // Pattern bounded by dots
+    const char *arch;  // Standardized architecture name
+} ArchMap;
+
 // Data structure for the architecture-specific items
 typedef struct {
     char *name;
-    char *arch; // "x86", "arm64", "s390"
+    char *arch;
 } Image;
 
 typedef struct {
@@ -75,12 +80,18 @@ static void free_list(ImageList *list) {
     list->capacity = 0;
 }
 
-const char *ARCH_OPTIONS[] = {
-    "all",
-    "x86",
-    "arm64",
-    NULL
-};
+const ArchMap arch_map[] = {
+        {".x86-64.", "x86_64"},
+        {".x86_64.", "x86_64"},
+        {".amd64.",  "x86_64"},
+        {".x86.",    "x86"},
+        {".i386.",   "x86"},
+        {".i686.",   "x86"},
+        {".arm64.",  "arm64"},
+        {".aarch64.","arm64"},
+        {".s390x.",  "s390x"},
+        {".s390.",   "s390"}
+    };
 
 bool is_supported_image(const char *name)
 {
@@ -98,6 +109,17 @@ bool is_supported_image(const char *name)
       return true;
 
   return false;
+}
+
+static const char *extract_arch_bounded(const char *filename) {
+    size_t count = sizeof(arch_map) / sizeof(arch_map[0]);
+
+    for (size_t i = 0; i < count; i++) {
+        if (strstr(filename, arch_map[i].token) != NULL) {
+            return arch_map[i].arch;
+        }
+    }
+    return "unknown";
 }
 
 /*
@@ -139,7 +161,7 @@ parse_sha256sums(const char *path, ImageList *ret_images)
 
       if (isempty(name) || !is_supported_image(name))
 	continue;
-      int ret = add_image(ret_images, name, "x86");
+      int ret = add_image(ret_images, name, extract_arch_bounded(name));
       if (ret == 0)
         count++;
       else
@@ -302,7 +324,12 @@ int get_url_from_list(char **ret)
   selected_image = choose_image(&image_list, header); 
   if (selected_image)
     {
-      if (asprintf(ret, "%s/%s", rdii_download_server, selected_image) < 0)
+      size_t len;
+      bool ends_with_slash = rdii_download_server &&
+        (len = strlen(rdii_download_server)) > 0 &&
+        rdii_download_server[len - 1] == '/';
+
+      if (asprintf(ret, "%s%s%s", rdii_download_server, (ends_with_slash ? "" : "/"), selected_image) < 0)
         r = -ENOMEM;
     }
   else
